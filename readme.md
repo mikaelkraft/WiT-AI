@@ -2,7 +2,7 @@
 
 **WIT AI** is an AI coding assistant plugin for [Acode](https://acode.app).
 
-By **Mikael Kraft** [Mikael Kraft](https://github.com/mikaelkraft)
+By [Mikael Kraft](https://github.com/mikaelkraft)
 
 Fix bugs, generate features, chat with code context, run a multi-step agent, and scaffold projects — using **Groq**, **Hugging Face**, or any **OpenAI-compatible** API.
 
@@ -47,7 +47,7 @@ npm run dev
 npm run build
 ```
 
-All rights reserved. **Ivytag World** ([@ivytag101](https://github.com/ivytag101))
+All rights reserved. **Ivytag World** ([@ivytag101](https://x.com/ivytag101))
 
 ## License
 
