@@ -1,4 +1,4 @@
-const plugin = {"$schema": "https://acode.app/schema/plugin/v0.1.0.json", "id": "com.witai.coder", "name": "WIT AI", "main": "main.js", "version": "1.1.0", "readme": "readme.md", "changelogs": "changelog.md", "icon": "icon.png", "files": [], "minVersionCode": 290, "license": "MIT", "keywords": ["ai", "groq", "huggingface", "coder", "assistant", "generate", "fix", "agent", "streaming"], "price": 0, "permissions": [], "author": {"name": "WIT AI", "email": "", "github": ""}};
+const plugin = {"$schema": "https://acode.app/schema/plugin/v0.1.0.json", "id": "com.witai.coder", "name": "WIT AI", "main": "main.js", "version": "1.2.0", "readme": "readme.md", "changelogs": "changelog.md", "icon": "icon.png", "files": [], "minVersionCode": 290, "license": "MIT", "keywords": ["ai", "groq", "huggingface", "coder", "assistant", "generate", "fix", "agent", "streaming"], "price": 0, "permissions": [], "author": {"name": "Mikael Kraft", "email": "", "github": "mikaelkraft", "url": "https://github.com/mikaelkraft"}};
 /**
  * WIT AI v1.1 — AI coding assistant for Acode
  * Groq + Hugging Face + OpenAI-compatible providers
@@ -51,6 +51,33 @@ class WitAI {
     for (const c of cmds) {
       commands.addCommand({ name: c.name, description: c.desc, bindKey: c.key, exec: c.fn });
     }
+
+    // Visible entry: sidebar app icon
+    try {
+      const sideBarApps = acode.require("sidebarApps");
+      // Use a built-in-looking icon class; many themes map "chat_bubble" / "robot"
+      sideBarApps.add(
+        "chat_bubble",
+        "witai_sidebar",
+        "WIT AI",
+        (container) => {
+          this.sidebarContainer = container;
+          this.renderSidebarChat(container);
+        },
+        false,
+        (container) => {
+          // Refresh when selected
+          if (container && !container.querySelector(".wit-root")) {
+            this.renderSidebarChat(container);
+          }
+        }
+      );
+    } catch (e) {
+      console.warn("WIT AI: sidebarApps not available", e);
+    }
+
+    // Floating chat bubble on the editor
+    this.installFab();
   }
 
   async destroy() {
@@ -58,6 +85,50 @@ class WitAI {
     const commands = acode.require("commands");
     ["witai.open", "witai.fix", "witai.generate", "witai.agent", "witai.chat", "witai.newproject", "witai.settings"]
       .forEach((n) => commands.removeCommand(n));
+    try {
+      const sideBarApps = acode.require("sidebarApps");
+      sideBarApps.remove("witai_sidebar");
+    } catch { /* ignore */ }
+    this.removeFab();
+  }
+
+  installFab() {
+    this.removeFab();
+    const btn = document.createElement("button");
+    btn.id = "witai-fab";
+    btn.title = "WIT AI";
+    btn.setAttribute("aria-label", "Open WIT AI");
+    btn.innerHTML = "✦";
+    Object.assign(btn.style, {
+      position: "fixed",
+      right: "16px",
+      bottom: "72px",
+      width: "48px",
+      height: "48px",
+      borderRadius: "50%",
+      border: "none",
+      background: "linear-gradient(135deg,#6c5ce7,#a29bfe)",
+      color: "#fff",
+      fontSize: "22px",
+      boxShadow: "0 4px 14px rgba(0,0,0,.35)",
+      zIndex: "9999",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
+    btn.onclick = () => this.openPanel();
+    document.body.appendChild(btn);
+    this.fabEl = btn;
+  }
+
+  removeFab() {
+    if (this.fabEl && this.fabEl.parentNode) {
+      this.fabEl.parentNode.removeChild(this.fabEl);
+    }
+    this.fabEl = null;
+    const existing = document.getElementById("witai-fab");
+    if (existing) existing.remove();
   }
 
   async getKey(provider) {
@@ -529,37 +600,36 @@ Include a short README.md. Keep files reasonably sized.`,
     }
   }
 
-  async openPanel() {
-    const page = this.$page;
-    if (!page) return this.openMainMenuFallback();
-
+  /** Build chat UI into a container (page body or sidebar). Returns root element. */
+  async mountChatUI(host) {
     const provider = await this.getSetting("provider", "groq");
+    host.innerHTML = "";
 
-    page.settitle("WIT AI");
-    page.innerHTML = "";
-
-    const style = document.createElement("style");
-    style.textContent = `
-      .wit-root { display:flex; flex-direction:column; height:100%; background:var(--secondary-color,#1e1e1e); color:var(--primary-text-color,#eee); font-family:system-ui,sans-serif; }
-      .wit-header { padding:10px 12px; border-bottom:1px solid #333; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-      .wit-header select, .wit-header button { background:#2d2d2d; color:#eee; border:1px solid #444; border-radius:6px; padding:6px 10px; font-size:13px; }
-      .wit-header button { cursor:pointer; }
-      .wit-header button:active { background:#3d3d3d; }
-      .wit-messages { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; }
-      .wit-msg { max-width:92%; padding:10px 12px; border-radius:10px; line-height:1.45; font-size:14px; white-space:pre-wrap; word-break:break-word; }
-      .wit-msg.user { align-self:flex-end; background:#0d6efd; color:#fff; }
-      .wit-msg.assistant { align-self:flex-start; background:#2a2a2a; border:1px solid #3a3a3a; }
-      .wit-msg.system { align-self:center; background:transparent; color:#888; font-size:12px; }
-      .wit-msg pre { background:#111; padding:8px; border-radius:6px; overflow-x:auto; margin:6px 0; }
-      .wit-input-row { display:flex; gap:8px; padding:10px; border-top:1px solid #333; }
-      .wit-input-row textarea { flex:1; min-height:44px; max-height:120px; resize:vertical; background:#2d2d2d; color:#eee; border:1px solid #444; border-radius:8px; padding:10px; font-size:14px; }
-      .wit-input-row button { background:#0d6efd; color:#fff; border:none; border-radius:8px; padding:0 16px; font-weight:600; cursor:pointer; }
-      .wit-input-row button.stop { background:#dc3545; }
-      .wit-input-row button:disabled { opacity:0.5; }
-      .wit-quick { display:flex; gap:6px; padding:0 10px 8px; flex-wrap:wrap; }
-      .wit-quick button { background:#333; color:#ccc; border:1px solid #444; border-radius:16px; padding:4px 10px; font-size:12px; cursor:pointer; }
-    `;
-    page.appendChild(style);
+    if (!document.getElementById("wit-ai-styles")) {
+      const style = document.createElement("style");
+      style.id = "wit-ai-styles";
+      style.textContent = `
+        .wit-root { display:flex; flex-direction:column; height:100%; min-height:280px; background:var(--secondary-color,#1e1e1e); color:var(--primary-text-color,#eee); font-family:system-ui,sans-serif; }
+        .wit-header { padding:10px 12px; border-bottom:1px solid #333; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .wit-header select, .wit-header button { background:#2d2d2d; color:#eee; border:1px solid #444; border-radius:6px; padding:6px 10px; font-size:13px; }
+        .wit-header button { cursor:pointer; }
+        .wit-header button:active { background:#3d3d3d; }
+        .wit-messages { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; max-height:50vh; }
+        .wit-msg { max-width:92%; padding:10px 12px; border-radius:10px; line-height:1.45; font-size:14px; white-space:pre-wrap; word-break:break-word; }
+        .wit-msg.user { align-self:flex-end; background:#0d6efd; color:#fff; }
+        .wit-msg.assistant { align-self:flex-start; background:#2a2a2a; border:1px solid #3a3a3a; }
+        .wit-msg.system { align-self:center; background:transparent; color:#888; font-size:12px; }
+        .wit-msg pre { background:#111; padding:8px; border-radius:6px; overflow-x:auto; margin:6px 0; }
+        .wit-input-row { display:flex; gap:8px; padding:10px; border-top:1px solid #333; }
+        .wit-input-row textarea { flex:1; min-height:44px; max-height:120px; resize:vertical; background:#2d2d2d; color:#eee; border:1px solid #444; border-radius:8px; padding:10px; font-size:14px; }
+        .wit-input-row button { background:#0d6efd; color:#fff; border:none; border-radius:8px; padding:0 16px; font-weight:600; cursor:pointer; }
+        .wit-input-row button.stop { background:#dc3545; }
+        .wit-input-row button:disabled { opacity:0.5; }
+        .wit-quick { display:flex; gap:6px; padding:0 10px 8px; flex-wrap:wrap; }
+        .wit-quick button { background:#333; color:#ccc; border:1px solid #444; border-radius:16px; padding:4px 10px; font-size:12px; cursor:pointer; }
+      `;
+      document.head.appendChild(style);
+    }
 
     const root = document.createElement("div");
     root.className = "wit-root";
@@ -573,37 +643,41 @@ Include a short README.md. Keep files reasonably sized.`,
         <option value="openai_compatible">OpenAI-compatible</option>
       </select>
       <select id="wit-model"></select>
-      <button id="wit-settings-btn" title="Settings">⚙</button>
-      <button id="wit-clear-btn" title="Clear chat">🗑</button>
+      <button type="button" id="wit-settings-btn" title="Settings">⚙</button>
+      <button type="button" id="wit-clear-btn" title="Clear chat">🗑</button>
     `;
     root.appendChild(header);
 
     const messagesEl = document.createElement("div");
-    messagesEl.className = "wit-messages";
+    messagesEl.className = "wit-messages scroll";
+    messagesEl.style.overflowY = "auto";
     root.appendChild(messagesEl);
 
     const quick = document.createElement("div");
     quick.className = "wit-quick";
     quick.innerHTML = `
-      <button data-q="fix">Fix file</button>
-      <button data-q="generate">Generate</button>
-      <button data-q="agent">Agent</button>
-      <button data-q="project">New project</button>
-      <button data-q="context">Attach file</button>
+      <button type="button" data-q="fix">Fix file</button>
+      <button type="button" data-q="generate">Generate</button>
+      <button type="button" data-q="agent">Agent</button>
+      <button type="button" data-q="project">New project</button>
+      <button type="button" data-q="context">Attach file</button>
     `;
     root.appendChild(quick);
 
     const inputRow = document.createElement("div");
     inputRow.className = "wit-input-row";
     inputRow.innerHTML = `
-      <textarea id="wit-input" placeholder="Ask WIT AI… (current file is used as context)" rows="2"></textarea>
-      <button id="wit-send">Send</button>
+      <textarea id="wit-input" placeholder="Ask WIT AI… (current file is context)" rows="2"></textarea>
+      <button type="button" id="wit-send">Send</button>
     `;
     root.appendChild(inputRow);
 
-    page.appendChild(root);
-    page.show();
+    host.appendChild(root);
+    await this.bindChatUI(root, header, messagesEl, quick, inputRow, provider);
+    return root;
+  }
 
+  async bindChatUI(root, header, messagesEl, quick, inputRow, provider) {
     const providerSel = header.querySelector("#wit-provider");
     const modelSel = header.querySelector("#wit-model");
     providerSel.value = provider;
@@ -656,7 +730,7 @@ Include a short README.md. Keep files reasonably sized.`,
     if (this.history.length) {
       for (const m of this.history) addMsg(m.role === "user" ? "user" : "assistant", m.content);
     } else {
-      addSystem("WIT AI ready. Current file is attached as context. Choose provider/model above.");
+      addSystem("WIT AI ready. Open sidebar icon or FAB. Set API keys via ⚙ or Plugins → WIT AI → Settings.");
     }
 
     quick.querySelectorAll("button").forEach((btn) => {
@@ -689,7 +763,7 @@ Include a short README.md. Keep files reasonably sized.`,
       const apiMessages = [
         {
           role: "system",
-          content: `You are WIT AI, a coding assistant inside Acode mobile editor. Be concise and practical. When giving code, make it ready to paste. Current file: ${ctx.filename} (${ctx.language}).`,
+          content: `You are WIT AI, a coding assistant inside Acode. Be concise. Current file: ${ctx.filename} (${ctx.language}).`,
         },
         ...this.history.slice(-12).map((m) => ({ role: m.role, content: m.content })),
       ];
@@ -739,6 +813,50 @@ Include a short README.md. Keep files reasonably sized.`,
         send();
       }
     });
+  }
+
+  renderSidebarChat(container) {
+    this.mountChatUI(container).catch((e) => {
+      container.innerHTML = `<p style="padding:12px;color:#f66">WIT AI error: ${e.message}</p>`;
+    });
+  }
+
+  async openPanel() {
+    const page = this.$page;
+    if (!page) return this.openMainMenuFallback();
+
+    try {
+      if (typeof page.settitle === "function") page.settitle("WIT AI");
+      else if (typeof page.setTitle === "function") page.setTitle("WIT AI");
+    } catch { /* ignore */ }
+
+    // Prefer body container if available
+    let host = page;
+    try {
+      if (typeof page.body === "object" && page.body) host = page.body;
+      else if (page.querySelector?.(".page-body")) host = page.querySelector(".page-body");
+    } catch { /* use page */ }
+
+    if (host === page) {
+      page.innerHTML = "";
+    } else {
+      host.innerHTML = "";
+    }
+
+    await this.mountChatUI(host);
+
+    try {
+      page.show();
+    } catch (e) {
+      try {
+        const actionStack = acode.require("actionStack");
+        actionStack.push({ id: "witai-page", action: () => page.hide?.() });
+        (document.getElementById("app") || document.body).appendChild(page);
+      } catch {
+        console.warn("WIT AI: could not show page", e);
+        this.openMainMenuFallback();
+      }
+    }
   }
 
   openMainMenuFallback() {
@@ -833,13 +951,75 @@ Include a short README.md. Keep files reasonably sized.`,
 
 if (window.acode) {
   const wit = new WitAI();
+
+  // Official plugin settings page (Plugins → WIT AI → Settings gear)
+  const pluginSettings = {
+    list: [
+      {
+        key: "provider",
+        text: "AI Provider",
+        info: "Groq, Hugging Face, or OpenAI-compatible",
+        select: [
+          ["groq", "Groq"],
+          ["huggingface", "Hugging Face"],
+          ["openai_compatible", "OpenAI-compatible"],
+        ],
+        value: "groq",
+      },
+      {
+        key: "model",
+        text: "Model ID",
+        info: "e.g. llama-3.3-70b-versatile",
+        prompt: "Model ID",
+        promptType: "text",
+        value: "llama-3.3-70b-versatile",
+      },
+      {
+        key: "base_url",
+        text: "OpenAI-compatible Base URL",
+        info: "Only for OpenAI-compatible provider",
+        prompt: "Base URL",
+        promptType: "text",
+        value: "https://api.openai.com/v1",
+      },
+      {
+        key: "open_chat",
+        text: "Open WIT AI chat",
+        info: "Opens the chat panel",
+        value: true,
+        valueText: () => "Tap to open",
+        checkbox: false,
+      },
+    ],
+    cb(key, value) {
+      if (key === "provider" || key === "model" || key === "base_url") {
+        wit.setSetting(key, value);
+      }
+      if (key === "open_chat") {
+        wit.openPanel();
+      }
+    },
+  };
+
   acode.setPluginInit(
     plugin.id,
     async (baseUrl, $page, { cacheFile, cacheFileUrl, firstInit, ctx }) => {
       wit.baseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
       await wit.init($page, cacheFile, cacheFileUrl, firstInit, ctx);
-    }
+      // Sync settings page values from secrets when possible
+      try {
+        const p = await wit.getSetting("provider", "groq");
+        const m = await wit.getSetting("model", "llama-3.3-70b-versatile");
+        const b = await wit.getSetting("base_url", "https://api.openai.com/v1");
+        const item = (k) => pluginSettings.list.find((x) => x.key === k);
+        if (item("provider")) item("provider").value = p;
+        if (item("model")) item("model").value = m;
+        if (item("base_url")) item("base_url").value = b;
+      } catch { /* ignore */ }
+    },
+    pluginSettings
   );
+
   acode.setPluginUnmount(plugin.id, () => {
     wit.destroy();
   });

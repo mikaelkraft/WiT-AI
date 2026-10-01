@@ -3,7 +3,7 @@
   "id": "com.witai.coder",
   "name": "WIT AI",
   "main": "main.js",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "readme": "readme.md",
   "changelogs": "changelog.md",
   "icon": "icon.png",
@@ -14,8 +14,9 @@
   "price": 0,
   "permissions": [],
   "author": {
-    "name": "WIT AI",
-    "email": "mikewillkraft@gmail.com",
-    "github": "https//github.com/mikaelkraft"
+    "name": "Mikael Kraft",
+    "email": "",
+    "github": "mikaelkraft",
+    "url": "https://github.com/mikaelkraft"
   }
 }
