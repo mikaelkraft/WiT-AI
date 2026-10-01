@@ -1,4 +1,4 @@
-const plugin = {"$schema": "https://acode.app/schema/plugin/v0.1.0.json", "id": "com.witai.coder", "name": "WIT AI", "main": "main.js", "version": "1.3.1", "readme": "readme.md", "changelogs": "changelog.md", "icon": "icon.png", "files": [], "minVersionCode": 290, "license": "MIT", "keywords": ["ai", "groq", "openai", "anthropic", "gemini", "huggingface", "coder", "assistant"], "price": 0, "permissions": [], "author": {"name": "Mikael Kraft", "email": "mikewillkraft@gmail.com", "github": "mikaelkraft", "url": "https://github.com/mikaelkraft"}};
+const plugin = {"$schema": "https://acode.app/schema/plugin/v0.1.0.json", "id": "com.witai.coder", "name": "WIT AI", "main": "main.js", "version": "1.3.9", "readme": "readme.md", "changelogs": "changelog.md", "icon": "icon.png", "files": [], "minVersionCode": 290, "license": "Apache-2.0", "keywords": ["ai", "groq", "openai", "anthropic", "gemini", "huggingface", "coder", "assistant"], "price": 0, "permissions": [], "author": {"name": "Mikael Kraft (Ivytag World)", "email": "mikewillkraft@gmail.com", "github": "mikaelkraft", "url": "https://github.com/mikaelkraft"}};
 /**
  * WIT AI v1.3.1 — multi-provider AI coding assistant for Acode
  * Groq · Gemini · Hugging Face · any OpenAI-compatible endpoint
@@ -13,56 +13,35 @@ class WitAI {
   abortController = null;
   lastUsage = null;
 
+  // Offline fallback only — live /models from the user's key is preferred
   MODELS = {
     groq: [
-      { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
-      { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant" },
-      { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
       { id: "openai/gpt-oss-20b", label: "GPT-OSS 20B" },
-      { id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout" },
-      { id: "qwen/qwen3-32b", label: "Qwen3 32B" },
+      { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
+      { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant" },
     ],
     openai: [
-      { id: "gpt-4o", label: "GPT-4o" },
-      { id: "gpt-4o-mini", label: "GPT-4o mini" },
       { id: "gpt-5", label: "GPT-5" },
       { id: "gpt-5-mini", label: "GPT-5 mini" },
-      { id: "o3-mini", label: "o3-mini" },
-      { id: "custom", label: "Custom model ID…" },
+      { id: "gpt-4o", label: "GPT-4o" },
+      { id: "gpt-4o-mini", label: "GPT-4o mini" },
     ],
     anthropic: [
-      { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-      { id: "claude-opus-4", label: "Claude Opus 4" },
+      { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
+      { id: "claude-opus-5", label: "Claude Opus 5" },
       { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-      { id: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet (latest)" },
-      { id: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku (latest)" },
-      { id: "custom", label: "Custom model ID…" },
     ],
     gemini: [
-      { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash (latest)" },
+      { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
       { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
-      { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
       { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
       { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
-      { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro" },
-      { id: "gemini-3-flash-preview", label: "Gemini 3 Flash" },
-      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
       { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
     ],
     huggingface: [
-      { id: "meta-llama/Llama-3.1-70B-Instruct", label: "Llama 3.1 70B Instruct" },
       { id: "meta-llama/Llama-3.1-8B-Instruct", label: "Llama 3.1 8B Instruct" },
-      { id: "Qwen/Qwen2.5-72B-Instruct", label: "Qwen2.5 72B" },
-      { id: "mistralai/Mixtral-8x7B-Instruct-v0.1", label: "Mixtral 8x7B" },
-      { id: "google/gemma-2-27b-it", label: "Gemma 2 27B" },
     ],
     openai_compatible: [
-      { id: "gpt-4o", label: "GPT-4o" },
-      { id: "gpt-4o-mini", label: "GPT-4o mini" },
-      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
-      { id: "claude-haiku-4.5", label: "Claude Haiku 4.5" },
-      { id: "claude-fable-5.1", label: "Claude Fable 5.1" },
-      { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
       { id: "custom", label: "Custom model ID…" },
     ],
   };
@@ -125,6 +104,9 @@ class WitAI {
     // Floating chat bubble on the editor
     this.installFab();
     await this.loadHistory();
+    if (!this.ctx) {
+      console.warn("WIT AI: ctx unavailable — using localStorage for keys");
+    }
   }
 
   async destroy() {
@@ -178,21 +160,110 @@ class WitAI {
     if (existing) existing.remove();
   }
 
+  storageKey(name) {
+    return `witai_${plugin.id}_${name}`;
+  }
+
+  async storeGet(name, def = "") {
+    const k = this.storageKey(name);
+    // 1) encrypted ctx secrets
+    if (this.ctx && typeof this.ctx.getSecret === "function") {
+      try {
+        const v = await this.ctx.getSecret(name, "");
+        if (v !== undefined && v !== null && String(v) !== "") return String(v);
+      } catch (e) {
+        console.warn("WIT AI getSecret failed", e);
+      }
+    }
+    // 2) localStorage fallback (persists when ctx is null)
+    try {
+      const v = localStorage.getItem(k);
+      if (v !== null && v !== "") return v;
+    } catch { /* private mode */ }
+    return def;
+  }
+
+  async storeSet(name, value) {
+    const val = String(value ?? "");
+    const k = this.storageKey(name);
+    let ok = false;
+    if (this.ctx && typeof this.ctx.setSecret === "function") {
+      try {
+        await this.ctx.setSecret(name, val);
+        ok = true;
+      } catch (e) {
+        console.warn("WIT AI setSecret failed", e);
+      }
+    }
+    try {
+      localStorage.setItem(k, val);
+      ok = true;
+    } catch (e) {
+      console.warn("WIT AI localStorage failed", e);
+    }
+    return ok;
+  }
+
   async getKey(provider) {
-    if (!this.ctx) return "";
-    return this.ctx.getSecret(`${provider}_api_key`, "");
+    return this.storeGet(`${provider}_api_key`, "");
   }
   async setKey(provider, key) {
-    if (!this.ctx) return;
-    await this.ctx.setSecret(`${provider}_api_key`, key || "");
+    const ok = await this.storeSet(`${provider}_api_key`, key || "");
+    if (!ok) throw new Error("Could not save key (storage unavailable)");
+    // verify
+    const check = await this.getKey(provider);
+    if ((key || "") && check !== (key || "").trim() && check !== key) {
+      // allow trim mismatch only if both empty
+      console.warn("WIT AI key verify mismatch");
+    }
+    return ok;
   }
   async getSetting(key, def = "") {
-    if (!this.ctx) return def;
-    return this.ctx.getSecret(`setting_${key}`, def);
+    return this.storeGet(`setting_${key}`, def);
   }
   async setSetting(key, value) {
-    if (!this.ctx) return;
-    await this.ctx.setSecret(`setting_${key}`, String(value ?? ""));
+    return this.storeSet(`setting_${key}`, String(value ?? ""));
+  }
+
+  safeToast(msg) {
+    const text = String(msg || "");
+    try {
+      const toastFn = acode && acode.toast;
+      if (typeof toastFn === "function") {
+        toastFn.call(acode, text);
+        return;
+      }
+    } catch (e) {
+      console.warn("WIT AI toast", e);
+    }
+    try {
+      const push = acode && acode.pushNotification;
+      if (typeof push === "function") {
+        push.call(acode, "WIT AI", text, { type: "info", autoClose: true });
+        return;
+      }
+    } catch (e) {
+      console.warn("WIT AI notify", e);
+    }
+    try {
+      if (typeof window !== "undefined" && typeof window.toast === "function") {
+        window.toast(text);
+        return;
+      }
+    } catch { /* ignore */ }
+    try {
+      if (typeof acode !== "undefined" && typeof acode.alert === "function" && text.length < 80) {
+        // last resort only for short messages — avoid modal spam
+      }
+    } catch { /* ignore */ }
+    console.log("WIT AI:", text);
+  }
+
+    async promptKey(label) {
+    // Avoid password-type prompts that show blank on some Acode builds
+    const key = await acode.prompt(label + " — paste key, then OK", "");
+    if (key === null || key === undefined) return null;
+    return String(key).trim();
   }
 
   getCurrentContext() {
@@ -277,9 +348,9 @@ class WitAI {
     let model = await this.getSetting("model", "");
     const baseUrl = await this.getSetting("base_url", "");
     if (!model || model === "custom") {
-      model = provider === "groq" ? "llama-3.3-70b-versatile"
+      model = provider === "groq" ? "openai/gpt-oss-20b"
         : provider === "openai" ? "gpt-4o-mini"
-        : provider === "anthropic" ? "claude-sonnet-4-5"
+        : provider === "anthropic" ? "claude-sonnet-5-5"
         : provider === "gemini" ? "gemini-3.8-flash"
         : provider === "huggingface" ? "meta-llama/Llama-3.1-8B-Instruct"
         : "gpt-4o-mini";
@@ -317,24 +388,71 @@ class WitAI {
     return h;
   }
 
+  isChatModelId(id) {
+    if (!id || typeof id !== "string") return false;
+    const s = id.toLowerCase().replace(/^models\//, "");
+    const deny = [
+      "whisper", "tts", "embedding", "embed", "image", "imagen", "veo",
+      "live", "transcribe", "realtime", "audio", "video", "dall-e", "dalle",
+      "moderation", "guard", "prompt-guard", "orpheus", "computer-use",
+      "nano-banana", "speech", "asr", "tts-", "-tts", "vision", "robotics",
+      "compound", "allam", "playai", "safeguard",
+    ];
+    if (deny.some((d) => s.includes(d))) return false;
+    // Gemini text chat only
+    if (s.startsWith("gemini-")) {
+      return (s.includes("flash") || s.includes("pro")) && !s.includes("lite-tts");
+    }
+    if (s.startsWith("claude-")) return true;
+    if (/^(gpt-|o[1-9]|chatgpt-|openai\/gpt-oss)/.test(s)) return true;
+    if (/llama-3|llama-4|gpt-oss|qwen3|gemma2|mixtral|deepseek|kimi-k2/.test(s)) return true;
+    // Explicit chat-capable HF ids only (narrow)
+    if (/meta-llama\/llama-3|qwen\/qwen|mistralai\/|google\/gemma/.test(s)) return true;
+    return false;
+  }
+
   async fetchRemoteModels() {
     try {
       const { url, key, provider } = await this.resolveEndpoint();
-      const modelsUrl = url.replace(/\/chat\/completions\/?$/, "/models");
+      if (!key) return [];
       const headers = this.authHeaders(key, provider);
       delete headers["Content-Type"];
-      const res = await fetch(modelsUrl, { headers });
-      if (!res.ok) return [];
-      const data = await res.json();
-      const list = data.data || data.models || [];
-      return list
-        .map((m) => {
-          const id = m.id || m.name || m;
-          if (typeof id !== "string") return null;
-          return { id, label: id };
-        })
-        .filter(Boolean)
-        .slice(0, 80);
+
+      const candidates = [];
+      const modelsUrl = url.replace(/\/chat\/completions\/?$/, "/models");
+      candidates.push(modelsUrl);
+      // Gemini native list (returns models/gemini-…)
+      if (provider === "gemini") {
+        candidates.push("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(key));
+      }
+
+      let list = [];
+      for (const modelsUrlTry of candidates) {
+        try {
+          const h = { ...headers };
+          // native Gemini list uses key query param; still ok with Bearer
+          const res = await fetch(modelsUrlTry, { headers: h });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const raw = data.data || data.models || [];
+          list = raw
+            .map((m) => {
+              let id = m.id || m.name || "";
+              if (typeof id !== "string") return null;
+              id = id.replace(/^models\//, "");
+              if (!this.isChatModelId(id)) return null;
+              return { id, label: id };
+            })
+            .filter(Boolean);
+          if (list.length) break;
+        } catch { /* try next */ }
+      }
+
+      // de-dupe + sort
+      const seen = new Set();
+      list = list.filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+      list.sort((a, b) => a.id.localeCompare(b.id));
+      return list.slice(0, 60);
     } catch {
       return [];
     }
@@ -372,22 +490,22 @@ class WitAI {
       };
       const next = profiles.filter((p) => p.name !== snap.name).concat([snap]);
       await this.saveProfiles(next);
-      acode.toast("Profile saved: " + snap.name);
+      this.safeToast("Profile saved: " + snap.name);
     } else if (choice === "Load profile") {
-      if (!profiles.length) return acode.toast("No profiles");
+      if (!profiles.length) return this.safeToast("No profiles");
       const name = await acode.select("Load", profiles.map((p) => p.name));
       const p = profiles.find((x) => x.name === name);
       if (!p) return;
       await this.setSetting("provider", p.provider || "groq");
       await this.setSetting("model", p.model || "");
       await this.setSetting("base_url", p.base_url || "");
-      acode.toast("Loaded " + p.name);
+      this.safeToast("Loaded " + p.name);
     } else if (choice === "Delete profile") {
       if (!profiles.length) return;
       const name = await acode.select("Delete", profiles.map((p) => p.name));
       if (!name) return;
       await this.saveProfiles(profiles.filter((p) => p.name !== name));
-      acode.toast("Deleted " + name);
+      this.safeToast("Deleted " + name);
     }
   }
 
@@ -411,12 +529,16 @@ class WitAI {
   }
 
   toastUsage(usage) {
-    if (!usage) return;
-    const p = usage.prompt_tokens ?? usage.input_tokens;
-    const c = usage.completion_tokens ?? usage.output_tokens;
-    const t = usage.total_tokens;
-    if (p != null || c != null || t != null) {
-      acode.toast(`Tokens: ${p ?? "?"} in / ${c ?? "?"} out` + (t != null ? ` (${t} total)` : ""));
+    try {
+      if (!usage) return;
+      const p = usage.prompt_tokens ?? usage.input_tokens;
+      const c = usage.completion_tokens ?? usage.output_tokens;
+      const tot = usage.total_tokens;
+      if (p != null || c != null || tot != null) {
+        this.safeToast(`Tokens: ${p ?? "?"} in / ${c ?? "?"} out` + (tot != null ? ` (${tot} total)` : ""));
+      }
+    } catch (e) {
+      console.warn("toastUsage", e);
     }
   }
 
@@ -444,52 +566,247 @@ class WitAI {
     return this.stripHtml(raw).slice(0, 6000);
   }
 
-  async webSearch(query) {
-    const q = encodeURIComponent(query);
-    const endpoints = [
-      `https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`,
-    ];
-    let text = "";
+  async fetchJson(url, timeoutMs = 12000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const res = await fetch(endpoints[0]);
-      if (res.ok) {
-        const data = await res.json();
-        const parts = [];
-        if (data.AbstractText) parts.push(data.AbstractText);
-        if (data.Heading) parts.push("Topic: " + data.Heading);
-        if (Array.isArray(data.RelatedTopics)) {
-          for (const t of data.RelatedTopics.slice(0, 6)) {
-            if (t.Text) parts.push("- " + t.Text);
-            else if (t.Topics) {
-              for (const s of t.Topics.slice(0, 3)) if (s.Text) parts.push("- " + s.Text);
-            }
-          }
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers: { Accept: "application/json,text/plain,*/*" },
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async postJson(url, body, headers = {}, timeoutMs = 15000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: { "Content-Type": "application/json", Accept: "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!res.ok) {
+        const err = new Error((data && (data.error || data.message)) || text.slice(0, 200) || String(res.status));
+        err.status = res.status;
+        throw err;
+      }
+      return data;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async searchTavily(query) {
+    const key = (await this.getKey("tavily") || "").trim();
+    const headers = {};
+    if (key) headers.Authorization = "Bearer " + key;
+    else headers["X-Tavily-Access-Mode"] = "keyless";
+    const data = await this.postJson("https://api.tavily.com/search", {
+      query: String(query).slice(0, 400),
+      max_results: 5,
+      search_depth: "basic",
+      include_answer: true,
+    }, headers);
+    const parts = ["[Tavily]"];
+    if (data.answer) parts.push("Answer: " + String(data.answer).slice(0, 1500));
+    const results = data.results || [];
+    for (const r of results.slice(0, 5)) {
+      const title = r.title || r.url || "result";
+      const url = r.url || "";
+      const content = (r.content || r.snippet || "").slice(0, 400);
+      parts.push(`- ${title}${url ? " — " + url : ""}`);
+      if (content) parts.push("  " + content);
+    }
+    return parts.length > 1 ? parts.join("\n") : "";
+  }
+
+  async searchFirecrawl(query) {
+    const key = (await this.getKey("firecrawl") || "").trim();
+    const headers = {};
+    if (key) headers.Authorization = "Bearer " + key;
+    // Keyless: no Authorization header (Firecrawl Keyless)
+    const body = {
+      query: String(query).slice(0, 400),
+      limit: 5,
+    };
+    let data = null;
+    // Prefer v1 (widely documented); fall back to v2
+    try {
+      data = await this.postJson("https://api.firecrawl.dev/v1/search", body, headers);
+    } catch (e1) {
+      try {
+        data = await this.postJson("https://api.firecrawl.dev/v2/search", body, headers);
+      } catch (e2) {
+        throw e1;
+      }
+    }
+    const parts = ["[Firecrawl]"];
+    const results = data.data || data.results || data.web || [];
+    const list = Array.isArray(results) ? results : (results.web || []);
+    for (const r of (list || []).slice(0, 5)) {
+      const title = r.title || r.metadata?.title || r.url || "result";
+      const url = r.url || r.metadata?.sourceURL || "";
+      const desc = (r.description || r.markdown || r.content || "").toString().slice(0, 400);
+      parts.push(`- ${title}${url ? " — " + url : ""}`);
+      if (desc) parts.push("  " + desc);
+    }
+    if (data.answer) parts.push("Answer: " + String(data.answer).slice(0, 1000));
+    return parts.length > 1 ? parts.join("\n") : "";
+  }
+
+  async webSearch(query) {
+    const qRaw = String(query || "").slice(0, 200);
+    const q = encodeURIComponent(qRaw);
+    const parts = [];
+    const today = new Date().toISOString().slice(0, 10);
+    parts.push("Date (UTC): " + today);
+
+    // 0) Prefer AI search APIs (Tavily → Firecrawl) when available / keyless
+    try {
+      const tav = await this.searchTavily(qRaw);
+      if (tav) parts.push(tav);
+    } catch (e) {
+      parts.push("[Tavily] " + (e.message || "failed").slice(0, 120));
+    }
+    // If Tavily already gave solid results, still try Firecrawl only if Tavily failed hard
+    const hasTavily = parts.some((p) => p.startsWith("[Tavily]") && !p.includes("failed") && p.includes("\n"));
+    if (!hasTavily) {
+      try {
+        const fc = await this.searchFirecrawl(qRaw);
+        if (fc) parts.push(fc);
+      } catch (e) {
+        parts.push("[Firecrawl] " + (e.message || "failed").slice(0, 120));
+      }
+    } else {
+      // Optional second source for coding/docs queries
+      if (/\b(docs?|api|sdk|github|npm|mdn|spec)\b/i.test(qRaw)) {
+        try {
+          const fc = await this.searchFirecrawl(qRaw);
+          if (fc) parts.push(fc);
+        } catch { /* ignore */ }
+      }
+    }
+
+    // 1) Wikipedia OpenSearch + summary
+    try {
+      const wiki = await this.fetchJson(
+        `https://en.wikipedia.org/w/api.php?action=opensearch&search=${q}&limit=5&namespace=0&format=json&origin=*`
+      );
+      if (Array.isArray(wiki) && wiki[1]?.length) {
+        parts.push("Wikipedia matches:");
+        for (let i = 0; i < Math.min(5, wiki[1].length); i++) {
+          const title = wiki[1][i];
+          const url = wiki[3]?.[i] || "";
+          parts.push(`- ${title}${url ? " — " + url : ""}`);
         }
-        if (data.AbstractURL) parts.push("Source: " + data.AbstractURL);
-        text = parts.join("\n");
+        const top = wiki[1][0];
+        if (top) {
+          try {
+            const sum = await this.fetchJson(
+              `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(top)}`
+            );
+            if (sum?.extract) parts.push("Summary: " + sum.extract.slice(0, 1200));
+            if (sum?.content_urls?.desktop?.page) parts.push("Source: " + sum.content_urls.desktop.page);
+          } catch { /* ignore */ }
+        }
       }
     } catch { /* ignore */ }
 
-    if (!text) {
+    // 2) DuckDuckGo Instant Answer
+    try {
+      const data = await this.fetchJson(
+        `https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`
+      );
+      if (data?.AbstractText) parts.push(data.AbstractText);
+      if (data?.Heading) parts.push("Topic: " + data.Heading);
+      if (Array.isArray(data?.RelatedTopics)) {
+        for (const t of data.RelatedTopics.slice(0, 6)) {
+          if (t.Text) parts.push("- " + t.Text);
+          else if (t.Topics) {
+            for (const s of t.Topics.slice(0, 3)) if (s.Text) parts.push("- " + s.Text);
+          }
+        }
+      }
+      if (data?.AbstractURL) parts.push("Source: " + data.AbstractURL);
+    } catch { /* ignore */ }
+
+    // 3) Wikinews for news-ish queries
+    if (/\b(news|today|headline|breaking|latest)\b/i.test(query)) {
       try {
-        const html = await (await fetch(`https://html.duckduckgo.com/html/?q=${q}`)).text();
-        text = this.stripHtml(html).slice(0, 4000);
+        const news = await this.fetchJson(
+          `https://en.wikinews.org/w/api.php?action=opensearch&search=${q}&limit=5&namespace=0&format=json&origin=*`
+        );
+        if (Array.isArray(news) && news[1]?.length) {
+          parts.push("Wikinews:");
+          for (let i = 0; i < Math.min(5, news[1].length); i++) {
+            parts.push(`- ${news[1][i]}${news[3]?.[i] ? " — " + news[3][i] : ""}`);
+          }
+        }
       } catch { /* ignore */ }
     }
-    return text || "(no web results)";
+
+    // 4) CORS proxy DDG HTML last resort if almost empty
+    const useful = parts.filter((p) => !p.startsWith("Date") && !p.includes("failed")).length;
+    if (useful <= 1) {
+      try {
+        const target = encodeURIComponent(`https://html.duckduckgo.com/html/?q=${q}`);
+        const proxied = await fetch(`https://api.allorigins.win/raw?url=${target}`);
+        if (proxied.ok) {
+          const html = await proxied.text();
+          const plain = this.stripHtml(html).slice(0, 2500);
+          if (plain) parts.push(plain);
+        }
+      } catch { /* ignore */ }
+    }
+
+    const text = parts.filter(Boolean).join("\n").trim();
+    return text || "(no web results — set Tavily/Firecrawl key in Settings, or paste a URL)";
   }
 
   async maybeWebContext(userText) {
     const enabled = await this.getSetting("web_enabled", "1");
     if (enabled === "0" || enabled === "false") return "";
-    const looksCurrent = /\b(latest|current|202[4-9]|standard|docs?|mdn|spec|RFC|how to|official)\b/i.test(userText)
+    const looksCurrent = /\b(latest|current|today|news|headline|202[4-9]|standard|docs?|mdn|spec|RFC|how to|official|price|release)\b/i.test(userText)
       || /^https?:\/\//i.test(userText);
     if (!looksCurrent && enabled !== "always") return "";
     try {
       const urlMatch = userText.match(/https?:\/\/[^\s)]+/);
       if (urlMatch) {
-        const body = await this.fetchUrlText(urlMatch[0]);
-        return `\n\nWeb page (${urlMatch[0]}):\n${body}`;
+        let body = "";
+        // Prefer Tavily extract when key/keyless works
+        try {
+          const key = (await this.getKey("tavily") || "").trim();
+          const headers = {};
+          if (key) headers.Authorization = "Bearer " + key;
+          else headers["X-Tavily-Access-Mode"] = "keyless";
+          const data = await this.postJson("https://api.tavily.com/extract", {
+            urls: [urlMatch[0]],
+          }, headers);
+          const r0 = (data.results || [])[0];
+          if (r0?.raw_content || r0?.content) {
+            body = String(r0.raw_content || r0.content).slice(0, 6000);
+          }
+        } catch { /* fall through */ }
+        if (!body) {
+          try {
+            body = await this.fetchUrlText(urlMatch[0]);
+          } catch {
+            try {
+              const proxied = await fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(urlMatch[0]));
+              if (proxied.ok) body = this.stripHtml(await proxied.text()).slice(0, 6000);
+            } catch { /* ignore */ }
+          }
+        }
+        return `\n\nWeb page (${urlMatch[0]}):\n${body || "(could not fetch page)"}`;
       }
       const body = await this.webSearch(userText.slice(0, 200));
       return `\n\nLive web context:\n${body}`;
@@ -576,12 +893,12 @@ class WitAI {
       cfg.servers = cfg.servers.filter((s) => s.name !== name);
       cfg.servers.push({ name: name.trim(), url: url.trim(), key: (key || "").trim() });
       await this.saveMcpConfig(cfg);
-      acode.toast("MCP server saved");
+      this.safeToast("MCP server saved");
     } else if (choice === "List saved servers") {
       const names = (cfg.servers || []).map((s) => `${s.name}\n${s.url}`);
       acode.alert("MCP servers", names.join("\n\n") || "(none)");
     } else if (choice === "Test server (tools/list)") {
-      if (!cfg.servers?.length) return acode.toast("No MCP servers");
+      if (!cfg.servers?.length) return this.safeToast("No MCP servers");
       const picked = await acode.select("Server", cfg.servers.map((s) => s.name));
       const server = cfg.servers.find((s) => s.name === picked);
       if (!server) return;
@@ -600,7 +917,7 @@ class WitAI {
         acode.alert("MCP error", e.message + "\n\nHTTP MCP servers need CORS + JSON-RPC. Stdio MCP cannot run inside Acode.");
       }
     } else if (choice === "Call a tool") {
-      if (!cfg.servers?.length) return acode.toast("No MCP servers");
+      if (!cfg.servers?.length) return this.safeToast("No MCP servers");
       const picked = await acode.select("Server", cfg.servers.map((s) => s.name));
       const server = cfg.servers.find((s) => s.name === picked);
       if (!server) return;
@@ -608,7 +925,7 @@ class WitAI {
         acode.loader?.show?.("Loading tools…");
         const tools = await this.mcpListTools(server);
         acode.loader?.hide?.();
-        if (!tools.length) return acode.toast("No tools");
+        if (!tools.length) return this.safeToast("No tools");
         const tname = await acode.select("Tool", tools.map((t) => t.name));
         if (!tname) return;
         const argsRaw = await acode.prompt("Arguments JSON", "{}");
@@ -631,12 +948,13 @@ class WitAI {
       if (!picked) return;
       cfg.servers = cfg.servers.filter((s) => s.name !== picked);
       await this.saveMcpConfig(cfg);
-      acode.toast("Removed " + picked);
+      this.safeToast("Removed " + picked);
     }
   }
 
   async callLLM(messages, options = {}) {
     const { model, url, key, provider } = await this.resolveEndpoint();
+    if (!key) throw new Error("No API key saved for " + provider + ". Settings → set " + provider + " key (paste full key, then OK).");
     if (!key) {
       acode.alert("WIT AI", "No API key set for the current provider.\nOpen Settings to add one.");
       return null;
@@ -655,16 +973,32 @@ class WitAI {
     });
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`API error (${res.status}): ${errText.slice(0, 400)}`);
+      throw new Error(this.formatApiError(res.status, errText, provider, body.model));
     }
     const data = await res.json();
     this.lastUsage = data.usage || null;
-    this.toastUsage(this.lastUsage);
+    try { this.toastUsage(this.lastUsage); } catch (_) {}
     return data.choices?.[0]?.message?.content?.trim() || "";
+  }
+
+  formatApiError(status, errText, provider, model) {
+    let msg = `API error (${status}): ${String(errText).slice(0, 350)}`;
+    const low = String(errText).toLowerCase();
+    if (status === 503 || low.includes("high demand") || low.includes("unavailable")) {
+      msg += "\n\nTip: Provider is overloaded. Retry later, or switch model (Gemini: try gemini-2.5-flash).";
+    } else if (status === 404 || low.includes("model_not_found") || low.includes("does not exist")) {
+      msg += `\n\nTip: Model "${model}" not available on this ${provider} key/plan. Pick another model (Groq: llama-3.1-8b-instant).`;
+    } else if (status === 401 || status === 403) {
+      msg += `\n\nTip: Check the ${provider} API key in Settings.`;
+    } else if (status === 429) {
+      msg += "\n\nTip: Rate limit — wait a minute or use a lighter model.";
+    }
+    return msg;
   }
 
   async callLLMStream(messages, onChunk, options = {}) {
     const { model, url, key, provider } = await this.resolveEndpoint();
+    if (!key) throw new Error("No API key saved for " + provider + ". Settings → set " + provider + " key (paste full key, then OK).");
     if (!key) {
       acode.alert("WIT AI", "No API key set for the current provider.\nOpen Settings to add one.");
       return null;
@@ -687,7 +1021,7 @@ class WitAI {
       });
       if (!res.ok) {
         const errText = await res.text();
-        throw new Error(`API error (${res.status}): ${errText.slice(0, 400)}`);
+        throw new Error(this.formatApiError(res.status, errText, provider, body.model));
       }
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -715,7 +1049,7 @@ class WitAI {
           } catch { /* ignore */ }
         }
       }
-      this.toastUsage(this.lastUsage);
+      try { this.toastUsage(this.lastUsage); } catch (_) {}
       return full.trim();
     } finally {
       this.isStreaming = false;
@@ -746,10 +1080,10 @@ class WitAI {
       const from = ctx.hasSelection ? editor.state.selection.main.from : 0;
       const to = ctx.hasSelection ? editor.state.selection.main.to : editor.state.doc.length;
       editor.dispatch({ changes: { from, to, insert: result } });
-      acode.toast("Replaced");
+      this.safeToast("Replaced");
     } else if (action === "Insert at cursor") {
       editor.dispatch({ changes: { from: ctx.cursor, insert: "\n" + result + "\n" } });
-      acode.toast("Inserted");
+      this.safeToast("Inserted");
     } else if (action === "Open in new tab") {
       const EditorFile = acode.require("editorFile");
       const ext = ctx.filename.includes(".") ? ctx.filename.split(".").pop() : "txt";
@@ -757,7 +1091,7 @@ class WitAI {
     } else if (action === "Copy to clipboard") {
       try {
         await navigator.clipboard.writeText(result);
-        acode.toast("Copied");
+        this.safeToast("Copied");
       } catch {
         acode.alert("WIT AI", result.slice(0, 2000));
       }
@@ -771,7 +1105,7 @@ Prefer clean, production-ready code. Match existing style. Minimal explanations 
     let userContent = "";
     if (type === "fix") {
       const code = ctx.selection || ctx.fullText;
-      if (!code.trim()) { acode.toast("No code to fix"); return; }
+      if (!code.trim()) { this.safeToast("No code to fix"); return; }
       userContent = `Fix bugs and improve the following code. Keep functionality and style.
 
 File: ${ctx.filename} (${ctx.language})
@@ -988,7 +1322,7 @@ ${(ctx.selection || ctx.fullText).slice(0, 6000)}
     try {
       folder = await acode.require("fileBrowser")("folder", "Choose parent folder for the new project");
     } catch {
-      acode.toast("Cancelled");
+      this.safeToast("Cancelled");
       return;
     }
     if (!folder?.url) return;
@@ -1064,11 +1398,13 @@ Include a short README.md. Keep files reasonably sized.`,
         .wit-header button { cursor:pointer; }
         .wit-header button:active { background:#3d3d3d; }
         .wit-messages { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; max-height:50vh; }
-        .wit-msg { max-width:92%; padding:10px 12px; border-radius:10px; line-height:1.45; font-size:14px; white-space:pre-wrap; word-break:break-word; }
-        .wit-msg.user { align-self:flex-end; background:#0d6efd; color:#fff; }
-        .wit-msg.assistant { align-self:flex-start; background:#2a2a2a; border:1px solid #3a3a3a; }
-        .wit-msg.system { align-self:center; background:transparent; color:#888; font-size:12px; }
-        .wit-msg pre { background:#111; padding:8px; border-radius:6px; overflow-x:auto; margin:6px 0; }
+        .wit-msg { max-width:92%; padding:10px 12px; border-radius:10px; line-height:1.45; font-size:14px; white-space:pre-wrap; word-break:break-word; color:#f5f5f5; }
+        .wit-msg.user { align-self:flex-end; background:#0d6efd !important; color:#ffffff !important; }
+        .wit-msg.assistant { align-self:flex-start; background:#333333 !important; color:#f5f5f5 !important; border:1px solid #666 !important; }
+        .wit-msg.assistant.error { background:#5a2020 !important; color:#ffe0e0 !important; border:1px solid #aa5555 !important; }
+        .wit-msg.system { align-self:center; background:transparent !important; color:#cccccc !important; font-size:12px; }
+        .wit-msg pre, .wit-msg code { background:#1a1a1a !important; color:#f0f0f0 !important; padding:8px; border-radius:6px; overflow-x:auto; margin:6px 0; }
+        .wit-messages { background:#1a1a1a !important; color:#f5f5f5 !important; }
         .wit-input-row { display:flex; gap:8px; padding:10px; border-top:1px solid #333; }
         .wit-input-row textarea { flex:1; min-height:44px; max-height:120px; resize:vertical; background:#2d2d2d; color:#eee; border:1px solid #444; border-radius:8px; padding:10px; font-size:14px; }
         .wit-input-row button { background:#0d6efd; color:#fff; border:none; border-radius:8px; padding:0 16px; font-weight:600; cursor:pointer; }
@@ -1139,33 +1475,44 @@ Include a short README.md. Keep files reasonably sized.`,
     const fillModels = async () => {
       const p = providerSel.value;
       modelSel.innerHTML = "";
-      let list = this.MODELS[p] || [];
       const saved = await this.getSetting("model", "");
-      // Try live /v1/models for custom + known OpenAI-compatible hosts
-      if (p === "openai_compatible" || p === "groq" || p === "gemini" || p === "openai" || p === "anthropic") {
-        try {
-          const remote = await this.fetchRemoteModels();
-          if (remote.length) {
-            const staticIds = new Set(list.map((m) => m.id));
-            list = list.concat(remote.filter((m) => !staticIds.has(m.id)));
-          }
-        } catch { /* keep static */ }
+      let list = [];
+      let source = "fallback";
+      // Prefer models available to THIS key only
+      try {
+        const remote = await this.fetchRemoteModels();
+        if (remote.length) {
+          list = remote;
+          source = "live";
+        }
+      } catch { /* fallback */ }
+      if (!list.length) {
+        list = (this.MODELS[p] || []).slice();
+        source = "fallback";
+      }
+      // Always allow typing a custom id
+      if (!list.some((m) => m.id === "custom")) {
+        list = list.concat([{ id: "custom", label: "Custom model ID…" }]);
       }
       for (const m of list) {
         const opt = document.createElement("option");
         opt.value = m.id;
-        opt.textContent = m.label;
+        opt.textContent = m.label + (source === "live" && m.id !== "custom" ? "" : "");
         if (m.id === saved) opt.selected = true;
         modelSel.appendChild(opt);
       }
       if (saved && ![...modelSel.options].some((o) => o.value === saved)) {
         const opt = document.createElement("option");
         opt.value = saved;
-        opt.textContent = saved;
+        opt.textContent = saved + " (saved)";
         opt.selected = true;
         modelSel.appendChild(opt);
       }
-      if (list.length && !saved) modelSel.value = list[0].id;
+      if (list.length && !modelSel.value) modelSel.value = list[0].id;
+      // Hint in system area when using offline list
+      if (source === "fallback") {
+        // non-blocking: user may not have key yet
+      }
     };
     await fillModels();
 
@@ -1202,6 +1549,13 @@ Include a short README.md. Keep files reasonably sized.`,
     const addMsg = (role, text) => {
       const div = document.createElement("div");
       div.className = `wit-msg ${role}`;
+      if (role === "user") {
+        div.style.cssText = "align-self:flex-end;background:#0d6efd;color:#fff;max-width:92%;padding:10px 12px;border-radius:10px;line-height:1.45;font-size:14px;white-space:pre-wrap;word-break:break-word;";
+      } else if (role === "assistant") {
+        div.style.cssText = "align-self:flex-start;background:#333;color:#f5f5f5;border:1px solid #666;max-width:92%;padding:10px 12px;border-radius:10px;line-height:1.45;font-size:14px;white-space:pre-wrap;word-break:break-word;";
+      } else {
+        div.style.cssText = "align-self:center;color:#ccc;font-size:12px;padding:4px 8px;";
+      }
       let html = escapeHtml(text);
       html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, _lang, code) => `<pre>${escapeHtml(code)}</pre>`);
       div.innerHTML = html;
@@ -1260,7 +1614,7 @@ Include a short README.md. Keep files reasonably sized.`,
       const apiMessages = [
         {
           role: "system",
-          content: `You are WIT AI, a coding assistant inside Acode. Be concise. Current file: ${ctx.filename} (${ctx.language}).`,
+          content: `You are WIT AI, a coding assistant inside Acode. Be concise. Today (UTC): ${new Date().toISOString().slice(0,10)}. Current file: ${ctx.filename} (${ctx.language}). If Live web context is provided below, treat it as current reference data.`,
         },
         ...this.history.slice(-12).map((m) => ({ role: m.role, content: m.content })),
       ];
@@ -1294,6 +1648,8 @@ Include a short README.md. Keep files reasonably sized.`,
         if (e.name === "AbortError") {
           assistantEl.textContent = (assistantEl.textContent || "") + "\n[stopped]";
         } else {
+          assistantEl.classList.add("error");
+          assistantEl.style.cssText = "align-self:flex-start;background:#5a2020;color:#ffe0e0;border:1px solid #aa5555;max-width:92%;padding:10px 12px;border-radius:10px;line-height:1.45;font-size:14px;white-space:pre-wrap;word-break:break-word;";
           assistantEl.textContent = "Error: " + (e.message || String(e));
         }
       } finally {
@@ -1392,6 +1748,8 @@ Include a short README.md. Keep files reasonably sized.`,
       "Set Gemini API Key",
       "Set Hugging Face Token",
       "Set Custom / inference key",
+      "Set Tavily API Key (web search)",
+      "Set Firecrawl API Key (web search)",
       "Custom / inference URL",
       "Refresh remote models",
       "MCP / external services",
@@ -1407,18 +1765,16 @@ Include a short README.md. Keep files reasonably sized.`,
       ]);
       if (p) {
         await this.setSetting("provider", p);
-        acode.toast(`Provider → ${p}`);
+        this.safeToast(`Provider → ${p}`);
       }
     } else if (choice?.startsWith("Model:")) {
       const p = await this.getSetting("provider", "groq");
-      let list = this.MODELS[p] || [];
+      let list = [];
       try {
         const remote = await this.fetchRemoteModels();
-        if (remote.length) {
-          const ids = new Set(list.map((m) => m.id));
-          list = list.concat(remote.filter((m) => !ids.has(m.id)));
-        }
-      } catch { /* static only */ }
+        if (remote.length) list = remote;
+      } catch { /* fallback */ }
+      if (!list.length) list = this.MODELS[p] || [];
       if (list.length) {
         const labels = list.map((m) => m.label).slice(0, 40);
         const picked = await acode.select("Model", labels);
@@ -1431,7 +1787,7 @@ Include a short README.md. Keep files reasonably sized.`,
             } else {
               await this.setSetting("model", m.id);
             }
-            acode.toast("Model saved");
+            this.safeToast("Model saved");
           }
         }
       } else {
@@ -1441,40 +1797,60 @@ Include a short README.md. Keep files reasonably sized.`,
     } else if (choice === "Profiles (save / load setups)") {
       await this.manageProfiles();
     } else if (choice === "Set Groq API Key") {
-      const key = await acode.prompt("Groq API Key (gsk_…)", "", true);
+      const key = await this.promptKey("Groq API Key (gsk_…)");
       if (key !== null) {
-        await this.setKey("groq", key.trim());
-        acode.toast(key ? "Groq key saved" : "Cleared");
+        await this.setKey("groq", key);
+        const v = await this.getKey("groq");
+        this.safeToast(v ? "Groq key saved (" + v.slice(0, 6) + "…)" : "Cleared");
       }
     } else if (choice === "Set OpenAI API Key") {
-      const key = await acode.prompt("OpenAI API Key (sk-…)", "", true);
+      const key = await this.promptKey("OpenAI API Key (sk-…)");
       if (key !== null) {
-        await this.setKey("openai", key.trim());
-        acode.toast(key ? "OpenAI key saved" : "Cleared");
+        await this.setKey("openai", key);
+        const v = await this.getKey("openai");
+        this.safeToast(v ? "OpenAI key saved (" + v.slice(0, 6) + "…)" : "Cleared");
       }
     } else if (choice === "Set Anthropic API Key") {
-      const key = await acode.prompt("Anthropic API Key (sk-ant-…)", "", true);
+      const key = await this.promptKey("Anthropic API Key (sk-ant-…)");
       if (key !== null) {
-        await this.setKey("anthropic", key.trim());
-        acode.toast(key ? "Anthropic key saved" : "Cleared");
+        await this.setKey("anthropic", key);
+        const v = await this.getKey("anthropic");
+        this.safeToast(v ? "Anthropic key saved (" + v.slice(0, 8) + "…)" : "Cleared");
       }
     } else if (choice === "Set Gemini API Key") {
-      const key = await acode.prompt("Gemini API Key (from Google AI Studio)", "", true);
+      const key = await this.promptKey("Gemini API Key (Google AI Studio)");
       if (key !== null) {
-        await this.setKey("gemini", key.trim());
-        acode.toast(key ? "Gemini key saved" : "Cleared");
+        await this.setKey("gemini", key);
+        const v = await this.getKey("gemini");
+        this.safeToast(v ? "Gemini key saved (" + v.slice(0, 6) + "…)" : "Cleared");
       }
     } else if (choice === "Set Hugging Face Token") {
-      const key = await acode.prompt("Hugging Face Token (hf_…)", "", true);
+      const key = await this.promptKey("Hugging Face Token (hf_…)");
       if (key !== null) {
-        await this.setKey("huggingface", key.trim());
-        acode.toast(key ? "HF token saved" : "Cleared");
+        await this.setKey("huggingface", key);
+        const v = await this.getKey("huggingface");
+        this.safeToast(v ? "HF token saved (" + v.slice(0, 6) + "…)" : "Cleared");
+      }
+    } else if (choice === "Set Tavily API Key (web search)") {
+      const key = await this.promptKey("Tavily API Key (tvly-… or empty for keyless)");
+      if (key !== null) {
+        await this.setKey("tavily", key);
+        const v = await this.getKey("tavily");
+        this.safeToast(v ? "Tavily key saved (" + v.slice(0, 6) + "…)" : "Tavily keyless mode");
+      }
+    } else if (choice === "Set Firecrawl API Key (web search)") {
+      const key = await this.promptKey("Firecrawl API Key (or empty for keyless)");
+      if (key !== null) {
+        await this.setKey("firecrawl", key);
+        const v = await this.getKey("firecrawl");
+        this.safeToast(v ? "Firecrawl key saved (" + v.slice(0, 6) + "…)" : "Firecrawl keyless mode");
       }
     } else if (choice === "Set Custom / inference key") {
-      const key = await acode.prompt("API key (BrewKeg, OpenRouter, Together, …)", "", true);
+      const key = await this.promptKey("Custom / inference API key");
       if (key !== null) {
-        await this.setKey("openai_compatible", key.trim());
-        acode.toast(key ? "Inference key saved" : "Cleared");
+        await this.setKey("openai_compatible", key);
+        const v = await this.getKey("openai_compatible");
+        this.safeToast(v ? "Inference key saved (" + v.slice(0, 6) + "…)" : "Cleared");
       }
     } else if (choice === "Custom / inference URL") {
       const labels = this.ENDPOINT_PRESETS.map((p) => p.label);
@@ -1489,12 +1865,12 @@ Include a short README.md. Keep files reasonably sized.`,
           if (url !== null) {
             await this.setSetting("base_url", url.trim());
             await this.setSetting("provider", "openai_compatible");
-            acode.toast("Custom URL saved");
+            this.safeToast("Custom URL saved");
           }
         } else {
           await this.setSetting("base_url", preset.url);
           await this.setSetting("provider", "openai_compatible");
-          acode.toast("Endpoint → " + preset.label);
+          this.safeToast("Endpoint → " + preset.label);
         }
       }
     } else if (choice === "Refresh remote models") {
@@ -1527,7 +1903,7 @@ Include a short README.md. Keep files reasonably sized.`,
       const mode = await acode.select("Web lookup", ["auto", "always", "off"]);
       if (mode) {
         await this.setSetting("web_enabled", mode === "off" ? "0" : mode);
-        acode.toast("Web lookup → " + mode);
+        this.safeToast("Web lookup → " + mode);
       }
     } else if (choice === "Clear all keys") {
       await this.setKey("groq", "");
@@ -1536,7 +1912,9 @@ Include a short README.md. Keep files reasonably sized.`,
       await this.setKey("gemini", "");
       await this.setKey("huggingface", "");
       await this.setKey("openai_compatible", "");
-      acode.toast("Keys cleared");
+      await this.setKey("tavily", "");
+      await this.setKey("firecrawl", "");
+      this.safeToast("Keys cleared");
     }
   }
 }
@@ -1550,7 +1928,7 @@ if (window.acode) {
       {
         key: "provider",
         text: "AI Provider",
-        info: "Groq, Gemini, Hugging Face, or any OpenAI-compatible endpoint",
+        info: "Which service to use for chat / agent",
         select: [
           ["groq", "Groq"],
           ["openai", "OpenAI"],
@@ -1564,15 +1942,67 @@ if (window.acode) {
       {
         key: "model",
         text: "Model ID",
-        info: "e.g. llama-3.3-70b-versatile, gemini-3.8-flash",
+        info: "Exact model id (or pick from chat dropdown after key is set)",
         prompt: "Model ID",
         promptType: "text",
-        value: "llama-3.3-70b-versatile",
+        value: "gemini-3.8-flash",
+      },
+      {
+        key: "gemini_api_key",
+        text: "Gemini API Key",
+        info: "From Google AI Studio — paste full key",
+        prompt: "Gemini API Key",
+        promptType: "text",
+        value: "",
+        valueText: (v) => (v ? "••••" + String(v).slice(-4) : "Not set — tap to paste"),
+      },
+      {
+        key: "groq_api_key",
+        text: "Groq API Key",
+        info: "From console.groq.com",
+        prompt: "Groq API Key",
+        promptType: "text",
+        value: "",
+        valueText: (v) => (v ? "••••" + String(v).slice(-4) : "Not set — tap to paste"),
+      },
+      {
+        key: "openai_api_key",
+        text: "OpenAI API Key",
+        prompt: "OpenAI API Key",
+        promptType: "text",
+        value: "",
+        valueText: (v) => (v ? "••••" + String(v).slice(-4) : "Not set"),
+      },
+      {
+        key: "anthropic_api_key",
+        text: "Anthropic API Key",
+        prompt: "Anthropic API Key",
+        promptType: "text",
+        value: "",
+        valueText: (v) => (v ? "••••" + String(v).slice(-4) : "Not set"),
+      },
+      {
+        key: "tavily_api_key",
+        text: "Tavily API Key (web)",
+        info: "Free tier ~1000/mo — leave empty for keyless mode",
+        prompt: "Tavily API Key",
+        promptType: "text",
+        value: "",
+        valueText: (v) => (v ? "••••" + String(v).slice(-4) : "Keyless / not set"),
+      },
+      {
+        key: "firecrawl_api_key",
+        text: "Firecrawl API Key (web)",
+        info: "Free tier ~1000 credits/mo — empty = keyless",
+        prompt: "Firecrawl API Key",
+        promptType: "text",
+        value: "",
+        valueText: (v) => (v ? "••••" + String(v).slice(-4) : "Keyless / not set"),
       },
       {
         key: "base_url",
         text: "Custom base URL",
-        info: "Used when provider is Custom endpoint (OpenAI, OpenRouter, DeepSeek, Ollama, BrewKeg, …)",
+        info: "Only for Custom / inference provider",
         prompt: "Base URL",
         promptType: "text",
         value: "https://api.openai.com/v1",
@@ -1580,29 +2010,49 @@ if (window.acode) {
       {
         key: "web_enabled",
         text: "Web lookup",
-        info: "Fetch live docs when the prompt needs current standards",
-        select: [
-          ["1", "Auto"],
-          ["always", "Always"],
-          ["0", "Off"],
-        ],
+        select: [["1", "Auto"], ["always", "Always"], ["0", "Off"]],
         value: "1",
       },
       {
         key: "open_chat",
         text: "Open WIT AI chat",
-        info: "Opens the chat panel",
         value: true,
         valueText: () => "Tap to open",
-        checkbox: false,
       },
     ],
-    cb(key, value) {
-      if (key === "provider" || key === "model" || key === "base_url") {
-        wit.setSetting(key, value);
-      }
-      if (key === "open_chat") {
-        wit.openPanel();
+    async cb(key, value) {
+      try {
+        if (key === "provider" || key === "model" || key === "base_url" || key === "web_enabled") {
+          await wit.setSetting(key, value);
+          wit.safeToast("Saved " + key);
+        }
+        if (key === "gemini_api_key") {
+          await wit.setKey("gemini", value || "");
+          wit.safeToast(value ? "Gemini key saved" : "Gemini key cleared");
+        }
+        if (key === "groq_api_key") {
+          await wit.setKey("groq", value || "");
+          wit.safeToast(value ? "Groq key saved" : "Groq key cleared");
+        }
+        if (key === "openai_api_key") {
+          await wit.setKey("openai", value || "");
+          wit.safeToast(value ? "OpenAI key saved" : "Cleared");
+        }
+        if (key === "anthropic_api_key") {
+          await wit.setKey("anthropic", value || "");
+          wit.safeToast(value ? "Anthropic key saved" : "Cleared");
+        }
+        if (key === "tavily_api_key") {
+          await wit.setKey("tavily", value || "");
+          wit.safeToast(value ? "Tavily key saved" : "Tavily keyless");
+        }
+        if (key === "firecrawl_api_key") {
+          await wit.setKey("firecrawl", value || "");
+          wit.safeToast(value ? "Firecrawl key saved" : "Firecrawl keyless");
+        }
+        if (key === "open_chat") wit.openPanel();
+      } catch (e) {
+        acode.alert("WIT AI", "Save failed: " + (e.message || e));
       }
     },
   };
@@ -1615,7 +2065,7 @@ if (window.acode) {
       // Sync settings page values from secrets when possible
       try {
         const p = await wit.getSetting("provider", "groq");
-        const m = await wit.getSetting("model", "llama-3.3-70b-versatile");
+        const m = await wit.getSetting("model", "openai/gpt-oss-20b");
         const b = await wit.getSetting("base_url", "https://api.openai.com/v1");
         const item = (k) => pluginSettings.list.find((x) => x.key === k);
         if (item("provider")) item("provider").value = p;

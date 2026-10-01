@@ -1,25 +1,22 @@
 # WIT AI
 
-![1000506324](https://github.com/user-attachments/assets/ff209dd3-fa7d-4dac-8f59-4e32db50e848)
-
 **WIT AI** is an AI coding assistant plugin for [Acode](https://acode.app).
 
-By [Mikael Kraft](https://x.com/mikaelkraft)
+By **Mikael Kraft** ([@mikaelkraft](https://x.com/mikaelkraft)) · [GitHub](https://github.com/mikaelkraft)
 
 Fix bugs, generate features, chat with code context, run a multi-step agent, call HTTP MCP tools, and scaffold projects — using **Groq**, **Gemini**, **Hugging Face**, or **any OpenAI-compatible** endpoint.
 
-## Features (v1.3.1)
+## Features (v1.3.9)
 
 - **Sidebar icon** + **floating chat bubble** for quick access
 - **Official settings page** under Plugins → WIT AI
 - **Streaming chat** with stop button and persisted history
-- **Providers**: Groq · Gemini · Hugging Face · Custom endpoint
-- **Endpoint presets**: OpenAI, OpenRouter, DeepSeek, Together, Fireworks, Ollama, Gemini-compat, BrewKeg, custom URL
+- **Providers**: Groq · OpenAI · Anthropic · Gemini · Hugging Face · Custom / inference
+- **Live model list** from your API key (`/models`) — chat models only
 - **Profiles** — save and switch provider/model/URL setups
-- **Live model list** from `/v1/models` when available
 - **Multi-step agent** — read / write / create / **patch** / **MCP** (with confirmation)
 - **HTTP MCP** servers (URL + optional bearer key)
-- **Web lookup** for current docs and standards
+- **Web lookup** via Tavily / Firecrawl (key or keyless) + Wikipedia
 - **Token usage** toast when the API reports usage
 - Fix selection, generate features, scaffold projects
 
@@ -38,12 +35,11 @@ Fix bugs, generate features, chat with code context, run a multi-step agent, cal
 ## Setup
 
 1. **Settings → Plugins → WIT AI → Settings**, or chat → ⚙  
-2. Pick a **provider** (default: Groq) and **model**  
+2. Pick a **provider** and **model** (models load from your key when possible)  
 3. Store API keys (encrypted):
    - Groq: https://console.groq.com/keys  
    - Gemini: https://aistudio.google.com/apikey  
-   - Hugging Face: https://huggingface.co/settings/tokens  
-   - Custom endpoint: your key + base URL (any OpenAI-compatible host)  
+   - OpenAI / Anthropic / Hugging Face / custom endpoints as needed  
 4. Optional: **Profiles** to switch setups quickly  
 5. Optional: **MCP / external services** for HTTP MCP servers  
 
@@ -57,6 +53,9 @@ Fix bugs, generate features, chat with code context, run a multi-step agent, cal
 
 **Apache License 2.0** — Copyright 2026 Mikael Kraft / Ivytag World.
 
- **Ivytag World** ([@ivytag101](https://x.com/ivytag101))
-
 You may use and modify WIT AI, but redistributions must keep the copyright notice, license, and `NOTICE` file, and must indicate significant changes. See `LICENSE` and `NOTICE`.
+
+---
+
+**Ivytag World** — [@ivytag101](https://x.com/ivytag101)  
+Contact: mikewillkraft@gmail.com

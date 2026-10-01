@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.3.9
+
+- **Tavily** web search (API key or keyless `X-Tavily-Access-Mode`)
+- **Firecrawl** web search (API key or keyless)
+- URL extract prefers Tavily `/extract` when available
+- Settings: Set Tavily / Firecrawl keys (⚙ + official plugin settings)
+
+## 1.3.8
+
+- Stronger **real-time / web context**: Wikipedia + Wikinews + DuckDuckGo + CORS proxy fallback
+- Injects UTC date into system prompt; wider auto-triggers (news/today/latest/…)
+- URL paste fetch via proxy when CORS blocks direct page load
+
+## 1.3.7
+
+- Critical: fixed broken toast helper (was recursive / still threw)
+- Token usage toast cannot break chat anymore
+
+## 1.3.6
+
+- Fix crash: `acode.toast is not a function` — safe toast/notification fallback
+
+## 1.3.5
+
+- **Keys actually persist**: dual storage (`ctx.setSecret` + `localStorage` fallback) when native ctx is null
+- Key prompts no longer use broken password-mode blank fields; save verifies and toasts prefix
+- Official settings page includes Gemini / Groq / OpenAI / Anthropic key fields
+- Stricter live model filter (no TTS/Live/Whisper/image flood)
+- Chat bubbles force light text via inline styles (theme-proof)
+
+## 1.3.4
+
+- Gemini offline fallback includes **gemini-3.7-flash**
+- Author contact: mikewillkraft@gmail.com
+- Credits link to X (x.com/mikaelkraft, x.com/ivytag101); Ivytag World moved to readme footer
+
+## 1.3.3
+
+- Model picker uses **live models from your API key** only (no giant mixed catalog)
+- Filters out TTS / Whisper / image / live / embedding models
+- Lean offline fallbacks if key missing or `/models` fails
+- Updated current defaults (Gemini 3.8 Flash, Claude Sonnet 5.5, Groq GPT-OSS 20B)
+
+## 1.3.2
+
+- Fix dark-on-dark chat/error text contrast
+- Clearer API error tips (503 overload, 404 model access)
+- Safer defaults: Groq `llama-3.1-8b-instant`, Gemini `gemini-2.5-flash`
+
 ## 1.3.1
 
 - License changed from MIT to **Apache-2.0** (attribution + NOTICE required)
