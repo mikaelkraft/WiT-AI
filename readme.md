@@ -1,5 +1,9 @@
 # WIT AI
 
+<img width="784" height="1168" alt="1000506324" src="https://github.com/user-attachments/assets/605f741b-c825-48f1-b8b4-989ab416ffbc" />
+
+
+
 **WIT AI** is an AI coding assistant plugin for [Acode](https://acode.app).
 
 By **Mikael Kraft** ([@mikaelkraft](https://x.com/mikaelkraft)) · [GitHub](https://github.com/mikaelkraft)
