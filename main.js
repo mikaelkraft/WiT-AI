@@ -1,9 +1,8 @@
-const plugin = {"$schema": "https://acode.app/schema/plugin/v0.1.0.json", "id": "com.witai.coder", "name": "WIT AI", "main": "main.js", "version": "1.2.0", "readme": "readme.md", "changelogs": "changelog.md", "icon": "icon.png", "files": [], "minVersionCode": 290, "license": "MIT", "keywords": ["ai", "groq", "huggingface", "coder", "assistant", "generate", "fix", "agent", "streaming"], "price": 0, "permissions": [], "author": {"name": "Mikael Kraft", "email": "", "github": "mikaelkraft", "url": "https://github.com/mikaelkraft"}};
+const plugin = {"$schema": "https://acode.app/schema/plugin/v0.1.0.json", "id": "com.witai.coder", "name": "WIT AI", "main": "main.js", "version": "1.3.1", "readme": "readme.md", "changelogs": "changelog.md", "icon": "icon.png", "files": [], "minVersionCode": 290, "license": "MIT", "keywords": ["ai", "groq", "openai", "anthropic", "gemini", "huggingface", "coder", "assistant"], "price": 0, "permissions": [], "author": {"name": "Mikael Kraft", "email": "", "github": "mikaelkraft", "url": "https://github.com/mikaelkraft"}};
 /**
- * WIT AI v1.1 — AI coding assistant for Acode
- * Groq + Hugging Face + OpenAI-compatible providers
- * Features: side-panel chat, streaming, multi-step agent, model picker,
- *           fix / generate / scaffold projects
+ * WIT AI v1.3.1 — multi-provider AI coding assistant for Acode
+ * Groq · Gemini · Hugging Face · any OpenAI-compatible endpoint
+ * Chat, streaming, agent, MCP (HTTP), web lookup, profiles, project scaffold
  */
 class WitAI {
   baseUrl = "";
@@ -12,27 +11,74 @@ class WitAI {
   history = [];
   isStreaming = false;
   abortController = null;
+  lastUsage = null;
 
   MODELS = {
     groq: [
       { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
       { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B Instant" },
-      { id: "openai/gpt-oss-20b", label: "GPT-OSS 20B" },
       { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
+      { id: "openai/gpt-oss-20b", label: "GPT-OSS 20B" },
       { id: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout" },
       { id: "qwen/qwen3-32b", label: "Qwen3 32B" },
     ],
+    openai: [
+      { id: "gpt-4o", label: "GPT-4o" },
+      { id: "gpt-4o-mini", label: "GPT-4o mini" },
+      { id: "gpt-5", label: "GPT-5" },
+      { id: "gpt-5-mini", label: "GPT-5 mini" },
+      { id: "o3-mini", label: "o3-mini" },
+      { id: "custom", label: "Custom model ID…" },
+    ],
+    anthropic: [
+      { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+      { id: "claude-opus-4", label: "Claude Opus 4" },
+      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+      { id: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet (latest)" },
+      { id: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku (latest)" },
+      { id: "custom", label: "Custom model ID…" },
+    ],
+    gemini: [
+      { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash (latest)" },
+      { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+      { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+      { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+      { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
+      { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro" },
+      { id: "gemini-3-flash-preview", label: "Gemini 3 Flash" },
+      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+    ],
     huggingface: [
-      { id: "meta-llama/Llama-3.1-8B-Instruct", label: "Llama 3.1 8B Instruct" },
       { id: "meta-llama/Llama-3.1-70B-Instruct", label: "Llama 3.1 70B Instruct" },
+      { id: "meta-llama/Llama-3.1-8B-Instruct", label: "Llama 3.1 8B Instruct" },
       { id: "Qwen/Qwen2.5-72B-Instruct", label: "Qwen2.5 72B" },
       { id: "mistralai/Mixtral-8x7B-Instruct-v0.1", label: "Mixtral 8x7B" },
       { id: "google/gemma-2-27b-it", label: "Gemma 2 27B" },
     ],
     openai_compatible: [
-      { id: "custom", label: "Custom (set in settings)" },
+      { id: "gpt-4o", label: "GPT-4o" },
+      { id: "gpt-4o-mini", label: "GPT-4o mini" },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+      { id: "claude-haiku-4.5", label: "Claude Haiku 4.5" },
+      { id: "claude-fable-5.1", label: "Claude Fable 5.1" },
+      { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+      { id: "custom", label: "Custom model ID…" },
     ],
   };
+
+  ENDPOINT_PRESETS = [
+    { id: "openai", label: "OpenAI", url: "https://api.openai.com/v1" },
+    { id: "openrouter", label: "OpenRouter", url: "https://openrouter.ai/api/v1" },
+    { id: "groq_compat", label: "Groq (OpenAI path)", url: "https://api.groq.com/openai/v1" },
+    { id: "gemini_compat", label: "Gemini OpenAI-compat", url: "https://generativelanguage.googleapis.com/v1beta/openai" },
+    { id: "deepseek", label: "DeepSeek", url: "https://api.deepseek.com/v1" },
+    { id: "together", label: "Together AI", url: "https://api.together.xyz/v1" },
+    { id: "fireworks", label: "Fireworks", url: "https://api.fireworks.ai/inference/v1" },
+    { id: "ollama", label: "Ollama (local)", url: "http://127.0.0.1:11434/v1" },
+    { id: "brewkeg", label: "BrewKeg", url: "https://brewkeg.dev/v1" },
+    { id: "custom", label: "Custom URL…", url: "" },
+  ];
 
   async init($page, _cacheFile, _cacheFileUrl, _firstInit, ctx) {
     this.ctx = ctx;
@@ -78,6 +124,7 @@ class WitAI {
 
     // Floating chat bubble on the editor
     this.installFab();
+    await this.loadHistory();
   }
 
   async destroy() {
@@ -211,12 +258,29 @@ class WitAI {
     return lines;
   }
 
+  normalizeChatUrl(base) {
+    let u = String(base || "").trim();
+    if (!u) return "";
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    u = u.replace(/\/+$/, "");
+    if (!/\/chat\/completions$/i.test(u)) {
+      if (!/\/v1$/i.test(u) && !/\/openai$/i.test(u) && !/\/v1beta\/openai$/i.test(u)) {
+        u += "/v1";
+      }
+      u += "/chat/completions";
+    }
+    return u;
+  }
+
   async resolveEndpoint() {
     const provider = await this.getSetting("provider", "groq");
     let model = await this.getSetting("model", "");
     const baseUrl = await this.getSetting("base_url", "");
-    if (!model) {
+    if (!model || model === "custom") {
       model = provider === "groq" ? "llama-3.3-70b-versatile"
+        : provider === "openai" ? "gpt-4o-mini"
+        : provider === "anthropic" ? "claude-sonnet-4-5"
+        : provider === "gemini" ? "gemini-3.8-flash"
         : provider === "huggingface" ? "meta-llama/Llama-3.1-8B-Instruct"
         : "gpt-4o-mini";
     }
@@ -224,19 +288,355 @@ class WitAI {
     if (provider === "groq") {
       url = "https://api.groq.com/openai/v1/chat/completions";
       keyProvider = "groq";
+    } else if (provider === "openai") {
+      url = "https://api.openai.com/v1/chat/completions";
+      keyProvider = "openai";
+    } else if (provider === "anthropic") {
+      // Anthropic OpenAI-compat layer (chat completions)
+      url = "https://api.anthropic.com/v1/chat/completions";
+      keyProvider = "anthropic";
+    } else if (provider === "gemini") {
+      url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      keyProvider = "gemini";
     } else if (provider === "huggingface") {
       url = "https://router.huggingface.co/v1/chat/completions";
       keyProvider = "huggingface";
     } else {
-      url = (baseUrl || "https://api.openai.com/v1").replace(/\/$/, "") + "/chat/completions";
+      url = this.normalizeChatUrl(baseUrl || "https://api.openai.com/v1");
       keyProvider = "openai_compatible";
     }
     const key = await this.getKey(keyProvider);
     return { provider, model, url, key, keyProvider };
   }
 
+  authHeaders(key, provider) {
+    const h = { "Content-Type": "application/json" };
+    if (key) h.Authorization = `Bearer ${key}`;
+    // Anthropic OpenAI-compat often wants version header too
+    if (provider === "anthropic") h["anthropic-version"] = "2023-06-01";
+    return h;
+  }
+
+  async fetchRemoteModels() {
+    try {
+      const { url, key, provider } = await this.resolveEndpoint();
+      const modelsUrl = url.replace(/\/chat\/completions\/?$/, "/models");
+      const headers = this.authHeaders(key, provider);
+      delete headers["Content-Type"];
+      const res = await fetch(modelsUrl, { headers });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const list = data.data || data.models || [];
+      return list
+        .map((m) => {
+          const id = m.id || m.name || m;
+          if (typeof id !== "string") return null;
+          return { id, label: id };
+        })
+        .filter(Boolean)
+        .slice(0, 80);
+    } catch {
+      return [];
+    }
+  }
+
+  async getProfiles() {
+    try {
+      const raw = await this.getSetting("profiles_json", "");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveProfiles(list) {
+    await this.setSetting("profiles_json", JSON.stringify(list || []));
+  }
+
+  async manageProfiles() {
+    const profiles = await this.getProfiles();
+    const choice = await acode.select("Profiles", [
+      "Save current as profile",
+      "Load profile",
+      "Delete profile",
+      "Back",
+    ]);
+    if (choice === "Save current as profile") {
+      const name = await acode.prompt("Profile name", "My setup");
+      if (!name) return;
+      const snap = {
+        name: name.trim(),
+        provider: await this.getSetting("provider", "groq"),
+        model: await this.getSetting("model", ""),
+        base_url: await this.getSetting("base_url", ""),
+      };
+      const next = profiles.filter((p) => p.name !== snap.name).concat([snap]);
+      await this.saveProfiles(next);
+      acode.toast("Profile saved: " + snap.name);
+    } else if (choice === "Load profile") {
+      if (!profiles.length) return acode.toast("No profiles");
+      const name = await acode.select("Load", profiles.map((p) => p.name));
+      const p = profiles.find((x) => x.name === name);
+      if (!p) return;
+      await this.setSetting("provider", p.provider || "groq");
+      await this.setSetting("model", p.model || "");
+      await this.setSetting("base_url", p.base_url || "");
+      acode.toast("Loaded " + p.name);
+    } else if (choice === "Delete profile") {
+      if (!profiles.length) return;
+      const name = await acode.select("Delete", profiles.map((p) => p.name));
+      if (!name) return;
+      await this.saveProfiles(profiles.filter((p) => p.name !== name));
+      acode.toast("Deleted " + name);
+    }
+  }
+
+  async persistHistory() {
+    try {
+      const slim = this.history.slice(-40).map((m) => ({
+        role: m.role,
+        content: String(m.content || "").slice(0, 8000),
+      }));
+      await this.setSetting("chat_history_json", JSON.stringify(slim));
+    } catch { /* ignore */ }
+  }
+
+  async loadHistory() {
+    try {
+      const raw = await this.getSetting("chat_history_json", "");
+      if (!raw) return;
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) this.history = list;
+    } catch { /* ignore */ }
+  }
+
+  toastUsage(usage) {
+    if (!usage) return;
+    const p = usage.prompt_tokens ?? usage.input_tokens;
+    const c = usage.completion_tokens ?? usage.output_tokens;
+    const t = usage.total_tokens;
+    if (p != null || c != null || t != null) {
+      acode.toast(`Tokens: ${p ?? "?"} in / ${c ?? "?"} out` + (t != null ? ` (${t} total)` : ""));
+    }
+  }
+
+  stripHtml(html) {
+    return String(html || "")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  async fetchUrlText(url) {
+    const res = await fetch(url, { headers: { Accept: "text/html,application/json,text/plain" } });
+    if (!res.ok) throw new Error(`${res.status} ${url}`);
+    const ct = res.headers.get("content-type") || "";
+    const raw = await res.text();
+    if (ct.includes("application/json")) {
+      try { return JSON.stringify(JSON.parse(raw)).slice(0, 6000); } catch { return raw.slice(0, 6000); }
+    }
+    return this.stripHtml(raw).slice(0, 6000);
+  }
+
+  async webSearch(query) {
+    const q = encodeURIComponent(query);
+    const endpoints = [
+      `https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`,
+    ];
+    let text = "";
+    try {
+      const res = await fetch(endpoints[0]);
+      if (res.ok) {
+        const data = await res.json();
+        const parts = [];
+        if (data.AbstractText) parts.push(data.AbstractText);
+        if (data.Heading) parts.push("Topic: " + data.Heading);
+        if (Array.isArray(data.RelatedTopics)) {
+          for (const t of data.RelatedTopics.slice(0, 6)) {
+            if (t.Text) parts.push("- " + t.Text);
+            else if (t.Topics) {
+              for (const s of t.Topics.slice(0, 3)) if (s.Text) parts.push("- " + s.Text);
+            }
+          }
+        }
+        if (data.AbstractURL) parts.push("Source: " + data.AbstractURL);
+        text = parts.join("\n");
+      }
+    } catch { /* ignore */ }
+
+    if (!text) {
+      try {
+        const html = await (await fetch(`https://html.duckduckgo.com/html/?q=${q}`)).text();
+        text = this.stripHtml(html).slice(0, 4000);
+      } catch { /* ignore */ }
+    }
+    return text || "(no web results)";
+  }
+
+  async maybeWebContext(userText) {
+    const enabled = await this.getSetting("web_enabled", "1");
+    if (enabled === "0" || enabled === "false") return "";
+    const looksCurrent = /\b(latest|current|202[4-9]|standard|docs?|mdn|spec|RFC|how to|official)\b/i.test(userText)
+      || /^https?:\/\//i.test(userText);
+    if (!looksCurrent && enabled !== "always") return "";
+    try {
+      const urlMatch = userText.match(/https?:\/\/[^\s)]+/);
+      if (urlMatch) {
+        const body = await this.fetchUrlText(urlMatch[0]);
+        return `\n\nWeb page (${urlMatch[0]}):\n${body}`;
+      }
+      const body = await this.webSearch(userText.slice(0, 200));
+      return `\n\nLive web context:\n${body}`;
+    } catch (e) {
+      return `\n\n(Web lookup failed: ${e.message})`;
+    }
+  }
+
+  async getMcpConfig() {
+    const raw = await this.getSetting("mcp_json", "");
+    if (!raw) return { servers: [] };
+    try { return JSON.parse(raw); } catch { return { servers: [] }; }
+  }
+
+  async saveMcpConfig(cfg) {
+    await this.setSetting("mcp_json", JSON.stringify(cfg || { servers: [] }));
+  }
+
+  async mcpRpc(server, method, params = {}, id = 1) {
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    };
+    if (server.key) headers.Authorization = `Bearer ${server.key}`;
+    const res = await fetch(server.url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`MCP ${res.status}: ${text.slice(0, 240)}`);
+    // streamable HTTP may return SSE
+    if (text.startsWith("event:") || text.includes("data:")) {
+      const lines = text.split("\n").filter((l) => l.startsWith("data:"));
+      const last = lines.pop();
+      if (last) return JSON.parse(last.slice(5).trim());
+    }
+    return JSON.parse(text);
+  }
+
+  async mcpInitialize(server) {
+    const init = await this.mcpRpc(server, "initialize", {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: { name: "WIT AI", version: "1.3.1" },
+    });
+    try { await this.mcpRpc(server, "notifications/initialized", {}, null); } catch { /* optional */ }
+    return init;
+  }
+
+  async mcpListTools(server) {
+    await this.mcpInitialize(server);
+    const out = await this.mcpRpc(server, "tools/list", {}, 2);
+    return out?.result?.tools || out?.tools || [];
+  }
+
+  async mcpCallTool(server, name, args = {}) {
+    await this.mcpInitialize(server);
+    const out = await this.mcpRpc(server, "tools/call", { name, arguments: args }, 3);
+    const result = out?.result || out;
+    const content = result?.content;
+    if (Array.isArray(content)) {
+      return content.map((c) => c.text || JSON.stringify(c)).join("\n");
+    }
+    return JSON.stringify(result).slice(0, 8000);
+  }
+
+  async configureMcp() {
+    const cfg = await this.getMcpConfig();
+    const choice = await acode.select("MCP / services", [
+      "Add HTTP MCP server",
+      "List saved servers",
+      "Test server (tools/list)",
+      "Call a tool",
+      "Remove a server",
+      "Back",
+    ]);
+    if (choice === "Add HTTP MCP server") {
+      const name = await acode.prompt("Server name", "my-mcp");
+      if (!name) return;
+      const url = await acode.prompt("MCP URL (HTTPS JSON-RPC)", "https://example.com/mcp");
+      if (!url) return;
+      const key = await acode.prompt("Bearer token (optional)", "", true);
+      cfg.servers = cfg.servers.filter((s) => s.name !== name);
+      cfg.servers.push({ name: name.trim(), url: url.trim(), key: (key || "").trim() });
+      await this.saveMcpConfig(cfg);
+      acode.toast("MCP server saved");
+    } else if (choice === "List saved servers") {
+      const names = (cfg.servers || []).map((s) => `${s.name}\n${s.url}`);
+      acode.alert("MCP servers", names.join("\n\n") || "(none)");
+    } else if (choice === "Test server (tools/list)") {
+      if (!cfg.servers?.length) return acode.toast("No MCP servers");
+      const picked = await acode.select("Server", cfg.servers.map((s) => s.name));
+      const server = cfg.servers.find((s) => s.name === picked);
+      if (!server) return;
+      try {
+        acode.loader?.show?.("Listing MCP tools…");
+        const tools = await this.mcpListTools(server);
+        acode.loader?.hide?.();
+        acode.alert(
+          server.name,
+          tools.length
+            ? tools.map((t) => `• ${t.name}\n  ${t.description || ""}`).join("\n\n")
+            : "Connected, but no tools advertised."
+        );
+      } catch (e) {
+        acode.loader?.hide?.();
+        acode.alert("MCP error", e.message + "\n\nHTTP MCP servers need CORS + JSON-RPC. Stdio MCP cannot run inside Acode.");
+      }
+    } else if (choice === "Call a tool") {
+      if (!cfg.servers?.length) return acode.toast("No MCP servers");
+      const picked = await acode.select("Server", cfg.servers.map((s) => s.name));
+      const server = cfg.servers.find((s) => s.name === picked);
+      if (!server) return;
+      try {
+        acode.loader?.show?.("Loading tools…");
+        const tools = await this.mcpListTools(server);
+        acode.loader?.hide?.();
+        if (!tools.length) return acode.toast("No tools");
+        const tname = await acode.select("Tool", tools.map((t) => t.name));
+        if (!tname) return;
+        const argsRaw = await acode.prompt("Arguments JSON", "{}");
+        let args = {};
+        try { args = JSON.parse(argsRaw || "{}"); } catch { return acode.alert("WIT AI", "Invalid JSON"); }
+        const ok = await acode.confirm(`Call ${tname} on ${server.name}?`);
+        if (!ok) return;
+        acode.loader?.show?.("Calling tool…");
+        const result = await this.mcpCallTool(server, tname, args);
+        acode.loader?.hide?.();
+        this.history.push({ role: "user", content: `MCP ${server.name}.${tname} →\n${result}` });
+        acode.alert("MCP result", String(result).slice(0, 3000));
+      } catch (e) {
+        acode.loader?.hide?.();
+        acode.alert("MCP error", e.message);
+      }
+    } else if (choice === "Remove a server") {
+      if (!cfg.servers?.length) return;
+      const picked = await acode.select("Remove", cfg.servers.map((s) => s.name));
+      if (!picked) return;
+      cfg.servers = cfg.servers.filter((s) => s.name !== picked);
+      await this.saveMcpConfig(cfg);
+      acode.toast("Removed " + picked);
+    }
+  }
+
   async callLLM(messages, options = {}) {
-    const { model, url, key } = await this.resolveEndpoint();
+    const { model, url, key, provider } = await this.resolveEndpoint();
     if (!key) {
       acode.alert("WIT AI", "No API key set for the current provider.\nOpen Settings to add one.");
       return null;
@@ -250,7 +650,7 @@ class WitAI {
     };
     const res = await fetch(url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: this.authHeaders(key, provider),
       body: JSON.stringify(body),
     });
     if (!res.ok) {
@@ -258,11 +658,13 @@ class WitAI {
       throw new Error(`API error (${res.status}): ${errText.slice(0, 400)}`);
     }
     const data = await res.json();
+    this.lastUsage = data.usage || null;
+    this.toastUsage(this.lastUsage);
     return data.choices?.[0]?.message?.content?.trim() || "";
   }
 
   async callLLMStream(messages, onChunk, options = {}) {
-    const { model, url, key } = await this.resolveEndpoint();
+    const { model, url, key, provider } = await this.resolveEndpoint();
     if (!key) {
       acode.alert("WIT AI", "No API key set for the current provider.\nOpen Settings to add one.");
       return null;
@@ -279,7 +681,7 @@ class WitAI {
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        headers: this.authHeaders(key, provider),
         body: JSON.stringify(body),
         signal: this.abortController.signal,
       });
@@ -304,6 +706,7 @@ class WitAI {
           if (data === "[DONE]") continue;
           try {
             const parsed = JSON.parse(data);
+            if (parsed.usage) this.lastUsage = parsed.usage;
             const delta = parsed.choices?.[0]?.delta?.content || "";
             if (delta) {
               full += delta;
@@ -312,6 +715,7 @@ class WitAI {
           } catch { /* ignore */ }
         }
       }
+      this.toastUsage(this.lastUsage);
       return full.trim();
     } finally {
       this.isStreaming = false;
@@ -430,9 +834,11 @@ Respond ONLY with a JSON array of actions (no markdown fences):
   {"action": "read", "path": "relative/path"},
   {"action": "write", "path": "path", "content": "full file content"},
   {"action": "create", "path": "path", "content": "full file content"},
+  {"action": "patch", "path": "path", "find": "exact old text", "replace": "new text"},
+  {"action": "mcp", "server": "server-name", "tool": "tool-name", "args": {}},
   {"action": "done", "summary": "what was done"}
 ]
-Prefer few focused actions. Always end with "done".`;
+Prefer few focused actions. Use patch for small edits. Always end with "done".`;
 
     const messages = [
       { role: "system", content: system },
@@ -519,6 +925,49 @@ ${(ctx.selection || ctx.fullText).slice(0, 6000)}
             results.push(`✓ ${act.action} ${act.path}`);
           } catch (e) {
             results.push(`Failed ${act.action} ${act.path}: ${e.message}`);
+          }
+        }
+        if (act.action === "patch") {
+          const confirm = await acode.confirm(`Agent patch:\n${act.path}\n\nProceed?`);
+          if (!confirm) {
+            results.push(`Skipped patch ${act.path}`);
+            continue;
+          }
+          try {
+            const url = act.path.startsWith("file:") || act.path.startsWith("content:")
+              ? act.path
+              : (folderUrl ? `${folderUrl.replace(/\/$/, "")}/${act.path.replace(/^\//, "")}` : act.path);
+            const file = await fs(url);
+            let content = await file.readFile("utf-8");
+            if (!act.find || !content.includes(act.find)) {
+              results.push(`Patch miss ${act.path}: find text not found`);
+            } else {
+              content = content.replace(act.find, act.replace ?? "");
+              await file.writeFile(content);
+              results.push(`✓ patch ${act.path}`);
+            }
+          } catch (e) {
+            results.push(`Failed patch ${act.path}: ${e.message}`);
+          }
+        }
+        if (act.action === "mcp") {
+          const cfg = await this.getMcpConfig();
+          const server = (cfg.servers || []).find((s) => s.name === act.server);
+          if (!server) {
+            results.push(`MCP server not found: ${act.server}`);
+            continue;
+          }
+          const confirm = await acode.confirm(`Call MCP ${act.server}.${act.tool}?`);
+          if (!confirm) {
+            results.push(`Skipped MCP ${act.tool}`);
+            continue;
+          }
+          try {
+            const out = await this.mcpCallTool(server, act.tool, act.args || {});
+            results.push(`MCP ${act.tool}: ${String(out).slice(0, 400)}`);
+            messages.push({ role: "user", content: `MCP result ${act.server}.${act.tool}:\n${String(out).slice(0, 6000)}` });
+          } catch (e) {
+            results.push(`MCP failed: ${e.message}`);
           }
         }
       }
@@ -639,8 +1088,11 @@ Include a short README.md. Keep files reasonably sized.`,
     header.innerHTML = `
       <select id="wit-provider">
         <option value="groq">Groq</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="gemini">Gemini</option>
         <option value="huggingface">Hugging Face</option>
-        <option value="openai_compatible">OpenAI-compatible</option>
+        <option value="openai_compatible">Custom / inference</option>
       </select>
       <select id="wit-model"></select>
       <button type="button" id="wit-settings-btn" title="Settings">⚙</button>
@@ -661,6 +1113,8 @@ Include a short README.md. Keep files reasonably sized.`,
       <button type="button" data-q="agent">Agent</button>
       <button type="button" data-q="project">New project</button>
       <button type="button" data-q="context">Attach file</button>
+      <button type="button" data-q="web">Web lookup</button>
+      <button type="button" data-q="mcp">MCP</button>
     `;
     root.appendChild(quick);
 
@@ -685,13 +1139,30 @@ Include a short README.md. Keep files reasonably sized.`,
     const fillModels = async () => {
       const p = providerSel.value;
       modelSel.innerHTML = "";
-      const list = this.MODELS[p] || [];
+      let list = this.MODELS[p] || [];
       const saved = await this.getSetting("model", "");
+      // Try live /v1/models for custom + known OpenAI-compatible hosts
+      if (p === "openai_compatible" || p === "groq" || p === "gemini" || p === "openai" || p === "anthropic") {
+        try {
+          const remote = await this.fetchRemoteModels();
+          if (remote.length) {
+            const staticIds = new Set(list.map((m) => m.id));
+            list = list.concat(remote.filter((m) => !staticIds.has(m.id)));
+          }
+        } catch { /* keep static */ }
+      }
       for (const m of list) {
         const opt = document.createElement("option");
         opt.value = m.id;
         opt.textContent = m.label;
         if (m.id === saved) opt.selected = true;
+        modelSel.appendChild(opt);
+      }
+      if (saved && ![...modelSel.options].some((o) => o.value === saved)) {
+        const opt = document.createElement("option");
+        opt.value = saved;
+        opt.textContent = saved;
+        opt.selected = true;
         modelSel.appendChild(opt);
       }
       if (list.length && !saved) modelSel.value = list[0].id;
@@ -704,12 +1175,25 @@ Include a short README.md. Keep files reasonably sized.`,
       await this.setSetting("model", modelSel.value);
     };
     modelSel.onchange = async () => {
-      await this.setSetting("model", modelSel.value);
+      if (modelSel.value === "custom") {
+        const custom = await acode.prompt("Custom model ID", await this.getSetting("model", ""));
+        if (custom) {
+          await this.setSetting("model", custom.trim());
+          const opt = document.createElement("option");
+          opt.value = custom.trim();
+          opt.textContent = custom.trim();
+          opt.selected = true;
+          modelSel.appendChild(opt);
+        }
+      } else {
+        await this.setSetting("model", modelSel.value);
+      }
     };
 
     header.querySelector("#wit-settings-btn").onclick = () => this.openSettings();
     header.querySelector("#wit-clear-btn").onclick = () => {
       this.history = [];
+      this.persistHistory();
       messagesEl.innerHTML = "";
       addSystem("Chat cleared");
     };
@@ -744,6 +1228,19 @@ Include a short README.md. Keep files reasonably sized.`,
           const ctx = this.getCurrentContext();
           addSystem(`Attached: ${ctx.filename} (${ctx.fullText.length} chars)`);
         }
+        if (q === "mcp") return this.configureMcp();
+        if (q === "web") {
+          const qtext = await acode.prompt("Search the web / paste a docs URL", "");
+          if (!qtext) return;
+          addSystem("Looking up: " + qtext);
+          try {
+            const extra = await this.maybeWebContext(qtext + " latest official docs");
+            this.history.push({ role: "user", content: "Web lookup: " + qtext + extra });
+            addSystem((extra || "").slice(0, 800) || "No results");
+          } catch (e) {
+            addSystem("Web error: " + e.message);
+          }
+        }
       };
     });
 
@@ -767,9 +1264,10 @@ Include a short README.md. Keep files reasonably sized.`,
         },
         ...this.history.slice(-12).map((m) => ({ role: m.role, content: m.content })),
       ];
+      const web = await this.maybeWebContext(text);
       apiMessages[apiMessages.length - 1] = {
         role: "user",
-        content: `File context (${ctx.filename}):\n\`\`\`${ctx.language}\n${codeCtx}\n\`\`\`\n\n${text}`,
+        content: `File context (${ctx.filename}):\n\`\`\`${ctx.language}\n${codeCtx}\n\`\`\`${web}\n\n${text}\n\nUse current official standards when coding. Prefer latest stable APIs.`,
       };
 
       const assistantEl = addMsg("assistant", "…");
@@ -785,6 +1283,7 @@ Include a short README.md. Keep files reasonably sized.`,
         });
         if (full) {
           this.history.push({ role: "assistant", content: full });
+          await this.persistHistory();
           let html = escapeHtml(full);
           html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, _l, code) => `<pre>${escapeHtml(code)}</pre>`);
           assistantEl.innerHTML = html;
@@ -882,33 +1381,56 @@ Include a short README.md. Keep files reasonably sized.`,
     const currentModel = await this.getSetting("model", "");
     const currentBase = await this.getSetting("base_url", "");
 
+    const webOn = await this.getSetting("web_enabled", "1");
     const choice = await acode.select("WIT AI Settings", [
       `Provider: ${currentProvider}`,
       `Model: ${currentModel || "(default)"}`,
+      "Profiles (save / load setups)",
       "Set Groq API Key",
+      "Set OpenAI API Key",
+      "Set Anthropic API Key",
+      "Set Gemini API Key",
       "Set Hugging Face Token",
-      "Set OpenAI-compatible Key",
-      "Set OpenAI-compatible Base URL",
+      "Set Custom / inference key",
+      "Custom / inference URL",
+      "Refresh remote models",
+      "MCP / external services",
+      `Web lookup: ${webOn === "0" ? "off" : webOn === "always" ? "always" : "auto"}`,
+      "Test current provider",
       "Clear all keys",
       "Back",
     ]);
 
     if (choice?.startsWith("Provider:")) {
-      const p = await acode.select("Default provider", ["groq", "huggingface", "openai_compatible"]);
+      const p = await acode.select("Default provider", [
+        "groq", "openai", "anthropic", "gemini", "huggingface", "openai_compatible",
+      ]);
       if (p) {
         await this.setSetting("provider", p);
         acode.toast(`Provider → ${p}`);
       }
     } else if (choice?.startsWith("Model:")) {
       const p = await this.getSetting("provider", "groq");
-      const list = this.MODELS[p] || [];
+      let list = this.MODELS[p] || [];
+      try {
+        const remote = await this.fetchRemoteModels();
+        if (remote.length) {
+          const ids = new Set(list.map((m) => m.id));
+          list = list.concat(remote.filter((m) => !ids.has(m.id)));
+        }
+      } catch { /* static only */ }
       if (list.length) {
-        const labels = list.map((m) => m.label);
+        const labels = list.map((m) => m.label).slice(0, 40);
         const picked = await acode.select("Model", labels);
         if (picked) {
           const m = list.find((x) => x.label === picked);
           if (m) {
-            await this.setSetting("model", m.id);
+            if (m.id === "custom") {
+              const custom = await acode.prompt("Custom model ID", currentModel || "");
+              if (custom) await this.setSetting("model", custom.trim());
+            } else {
+              await this.setSetting("model", m.id);
+            }
             acode.toast("Model saved");
           }
         }
@@ -916,11 +1438,31 @@ Include a short README.md. Keep files reasonably sized.`,
         const model = await acode.prompt("Model id", currentModel || "");
         if (model) await this.setSetting("model", model.trim());
       }
+    } else if (choice === "Profiles (save / load setups)") {
+      await this.manageProfiles();
     } else if (choice === "Set Groq API Key") {
       const key = await acode.prompt("Groq API Key (gsk_…)", "", true);
       if (key !== null) {
         await this.setKey("groq", key.trim());
         acode.toast(key ? "Groq key saved" : "Cleared");
+      }
+    } else if (choice === "Set OpenAI API Key") {
+      const key = await acode.prompt("OpenAI API Key (sk-…)", "", true);
+      if (key !== null) {
+        await this.setKey("openai", key.trim());
+        acode.toast(key ? "OpenAI key saved" : "Cleared");
+      }
+    } else if (choice === "Set Anthropic API Key") {
+      const key = await acode.prompt("Anthropic API Key (sk-ant-…)", "", true);
+      if (key !== null) {
+        await this.setKey("anthropic", key.trim());
+        acode.toast(key ? "Anthropic key saved" : "Cleared");
+      }
+    } else if (choice === "Set Gemini API Key") {
+      const key = await acode.prompt("Gemini API Key (from Google AI Studio)", "", true);
+      if (key !== null) {
+        await this.setKey("gemini", key.trim());
+        acode.toast(key ? "Gemini key saved" : "Cleared");
       }
     } else if (choice === "Set Hugging Face Token") {
       const key = await acode.prompt("Hugging Face Token (hf_…)", "", true);
@@ -928,20 +1470,70 @@ Include a short README.md. Keep files reasonably sized.`,
         await this.setKey("huggingface", key.trim());
         acode.toast(key ? "HF token saved" : "Cleared");
       }
-    } else if (choice === "Set OpenAI-compatible Key") {
-      const key = await acode.prompt("API Key", "", true);
+    } else if (choice === "Set Custom / inference key") {
+      const key = await acode.prompt("API key (BrewKeg, OpenRouter, Together, …)", "", true);
       if (key !== null) {
         await this.setKey("openai_compatible", key.trim());
-        acode.toast(key ? "Key saved" : "Cleared");
+        acode.toast(key ? "Inference key saved" : "Cleared");
       }
-    } else if (choice === "Set OpenAI-compatible Base URL") {
-      const url = await acode.prompt("Base URL (e.g. https://api.openai.com/v1)", currentBase || "https://api.openai.com/v1");
-      if (url !== null) {
-        await this.setSetting("base_url", url.trim());
-        acode.toast("Base URL saved");
+    } else if (choice === "Custom / inference URL") {
+      const labels = this.ENDPOINT_PRESETS.map((p) => p.label);
+      const picked = await acode.select("Endpoint preset", labels);
+      if (picked) {
+        const preset = this.ENDPOINT_PRESETS.find((p) => p.label === picked);
+        if (preset?.id === "custom" || !preset?.url) {
+          const url = await acode.prompt(
+            "Base URL (e.g. https://api.openai.com/v1)",
+            currentBase || "https://api.openai.com/v1"
+          );
+          if (url !== null) {
+            await this.setSetting("base_url", url.trim());
+            await this.setSetting("provider", "openai_compatible");
+            acode.toast("Custom URL saved");
+          }
+        } else {
+          await this.setSetting("base_url", preset.url);
+          await this.setSetting("provider", "openai_compatible");
+          acode.toast("Endpoint → " + preset.label);
+        }
+      }
+    } else if (choice === "Refresh remote models") {
+      try {
+        acode.loader?.show?.("Fetching models…");
+        const remote = await this.fetchRemoteModels();
+        acode.loader?.hide?.();
+        acode.alert("Remote models", remote.length
+          ? remote.slice(0, 30).map((m) => m.id).join("\n")
+          : "None returned (endpoint may not support /v1/models)");
+      } catch (e) {
+        acode.loader?.hide?.();
+        acode.alert("Models", e.message);
+      }
+    } else if (choice === "MCP / external services") {
+      await this.configureMcp();
+    } else if (choice === "Test current provider") {
+      try {
+        acode.loader?.show?.("Testing connection…");
+        const reply = await this.callLLM([
+          { role: "user", content: "Reply with exactly: WIT AI connected" },
+        ], { max_tokens: 32 });
+        acode.loader?.hide?.();
+        acode.alert("Connection", reply || "(empty — check key + base URL)");
+      } catch (e) {
+        acode.loader?.hide?.();
+        acode.alert("Connection failed", e.message);
+      }
+    } else if (choice?.startsWith("Web lookup:")) {
+      const mode = await acode.select("Web lookup", ["auto", "always", "off"]);
+      if (mode) {
+        await this.setSetting("web_enabled", mode === "off" ? "0" : mode);
+        acode.toast("Web lookup → " + mode);
       }
     } else if (choice === "Clear all keys") {
       await this.setKey("groq", "");
+      await this.setKey("openai", "");
+      await this.setKey("anthropic", "");
+      await this.setKey("gemini", "");
       await this.setKey("huggingface", "");
       await this.setKey("openai_compatible", "");
       acode.toast("Keys cleared");
@@ -958,29 +1550,43 @@ if (window.acode) {
       {
         key: "provider",
         text: "AI Provider",
-        info: "Groq, Hugging Face, or OpenAI-compatible",
+        info: "Groq, Gemini, Hugging Face, or any OpenAI-compatible endpoint",
         select: [
           ["groq", "Groq"],
+          ["openai", "OpenAI"],
+          ["anthropic", "Anthropic"],
+          ["gemini", "Gemini"],
           ["huggingface", "Hugging Face"],
-          ["openai_compatible", "OpenAI-compatible"],
+          ["openai_compatible", "Custom / inference"],
         ],
         value: "groq",
       },
       {
         key: "model",
         text: "Model ID",
-        info: "e.g. llama-3.3-70b-versatile",
+        info: "e.g. llama-3.3-70b-versatile, gemini-3.8-flash",
         prompt: "Model ID",
         promptType: "text",
         value: "llama-3.3-70b-versatile",
       },
       {
         key: "base_url",
-        text: "OpenAI-compatible Base URL",
-        info: "Only for OpenAI-compatible provider",
+        text: "Custom base URL",
+        info: "Used when provider is Custom endpoint (OpenAI, OpenRouter, DeepSeek, Ollama, BrewKeg, …)",
         prompt: "Base URL",
         promptType: "text",
         value: "https://api.openai.com/v1",
+      },
+      {
+        key: "web_enabled",
+        text: "Web lookup",
+        info: "Fetch live docs when the prompt needs current standards",
+        select: [
+          ["1", "Auto"],
+          ["always", "Always"],
+          ["0", "Off"],
+        ],
+        value: "1",
       },
       {
         key: "open_chat",
