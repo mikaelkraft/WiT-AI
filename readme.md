@@ -2,7 +2,7 @@
 
 **WIT AI** is an AI coding assistant plugin for [Acode](https://acode.app).
 
-By [Mikael Kraft](https://github.com/mikaelkraft) 
+By [Mikael Kraft](https://github.com/mikaelkraft)
 
 Fix bugs, generate features, chat with code context, run a multi-step agent, call HTTP MCP tools, and scaffold projects — using **Groq**, **Gemini**, **Hugging Face**, or **any OpenAI-compatible** endpoint.
 
@@ -45,11 +45,16 @@ Fix bugs, generate features, chat with code context, run a multi-step agent, cal
 4. Optional: **Profiles** to switch setups quickly  
 5. Optional: **MCP / external services** for HTTP MCP servers  
 
-All rights reserved. Ivytag World ([@ivytag101](https://x.com/ivytag101))
-
-
 ## Notes
 
 - Stdio MCP (local `npx` processes) cannot run inside Acode’s WebView; use **HTTPS MCP** instead.  
 - Some MCP hosts require CORS; if `tools/list` fails, the server may be blocking mobile WebView origins.  
 - Custom endpoints need both **base URL** and **key** (same pattern as OpenAI).  
+
+## License
+
+**Apache License 2.0** — Copyright 2026 Mikael Kraft / Ivytag World.
+
+ **Ivytag World** ([@ivytag101](https://x.com/ivytag101))
+
+You may use and modify WIT AI, but redistributions must keep the copyright notice, license, and `NOTICE` file, and must indicate significant changes. See `LICENSE` and `NOTICE`.

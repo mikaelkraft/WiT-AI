@@ -9,7 +9,7 @@
   "icon": "icon.png",
   "files": [],
   "minVersionCode": 290,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "ai",
     "groq",

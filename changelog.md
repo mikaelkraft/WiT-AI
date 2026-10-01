@@ -2,6 +2,8 @@
 
 ## 1.3.1
 
+- License changed from MIT to **Apache-2.0** (attribution + NOTICE required)
+
 - Multi-provider first: Groq, Gemini, Hugging Face, Custom endpoint (not centered on any one host)
 - Endpoint presets: OpenAI, OpenRouter, DeepSeek, Together, Fireworks, Ollama, Gemini-compat, Groq path, BrewKeg, custom
 - **Profiles** — save / load provider + model + base URL setups
