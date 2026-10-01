@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- **Sidebar app** icon (chat entry in Acode sidebar)
+- **Floating chat bubble** (FAB) on the editor
+- **Official plugin settings** page (Plugins → WIT AI → Settings)
+- More reliable page show / body mounting
+- Author: Mikael Kraft (@mikaelkraft) / Ivytag World (@ivytag101)
+
 ## 1.1.0
 
 - Side-panel chat UI with streaming responses
