@@ -1,7 +1,109 @@
 # Changelog
 
+## 1.4.15
+
+- Stronger **project folder** detection (`addedfolder`, file location, fileIndex)
+- Auto-loads **app.js / styles.css / …** into chat context for diagnose/check requests
+- **Apply** never dumps path-tagged code into the wrong open tab (e.g. app.js → not index.html)
+- Apply buttons labeled with target filename
+
+## 1.4.14
+
+- Livelier progress status (IDE-style phrases) while scanning, reading files, web lookup, thinking, streaming
+- Status rotates so the UI does not look stuck on only "Looking up context" / "Generating"
+- **Delete chat history**: long-press a message → Copy / Delete; 🗑 → Clear this chat or Delete this session; Sessions → Delete session
+
+## 1.4.13
+
+- Chat **auto-reads project files** named in your message (e.g. app.js, styles.css)
+- "Check the files" on a small project loads those files into context
+- Model is instructed not to claim it cannot access the project filesystem
+
+## 1.4.12
+
+- **Provider dropdown fixed**: options were empty (tiny unusable box); now lists Groq/OpenAI/Anthropic/Gemini/HF/Custom
+- Larger, usable provider/model selects in header
+- FAB overlay no longer covers Acode settings/prompts (z-index lowered + temporary hide while dialogs open)
+
+## 1.4.11
+
+- Sidebar ✦ adapts: **deep violet on light/white** backgrounds, **bright star on dark**
+
+## 1.4.10
+
+- Sidebar ✦ icon: **white** with purple glow for stronger contrast on the rail
+
+## 1.4.9
+
+- Agent **patch-first**; full write must keep existing features; **blocks short destructive writes**
+- Path-tagged replies can **write to disk immediately** (not only ephemeral Apply buttons)
+- Chat messages are **text-selectable** (partial copy)
+- Readme: FAB **swipe up**, no plugin-replication guide; focus on product capabilities
+
+## 1.4.7
+
+- **Apply** writes to **disk** (active file URI) as well as the editor buffer
+- Clearer Apply: project path vs open file (no vague “find it yourself” flow)
+- **FAB** opens a **full-screen overlay chat** (works even when `$page` does not)
+
+## 1.4.6
+
+- Agent **`run` action**: suggests shell commands and **copies** them for Acode terminal / Termux
+- Scaffold can include **`commands`** (e.g. npm install) offered after project create
+- Prompts assume a developer user who can run terminal steps
+
+## 1.4.5
+
+- **Smart Apply**: path-tagged blocks (`\`\`\`js src/app.js` or `// file: …`) write to the right project files
+- **Write all N files** when the model returns multiple tagged blocks
+- **Long-press** any bubble (yours or the model) to copy; Copy button kept
+- Prompts push models to tag paths / use agent actions instead of “paste this yourself”
+
+## 1.4.4
+
+- **Apply fixed for CodeMirror 6** (`dispatch` / session — no more `setValue is not a function`)
+- **Copy** on every chat bubble + Copy on code Apply bar
+- Agent **write/create** uses robust project FS write and refreshes open editor tab
+- FAB mounts on `#app` with higher z-index (sidebar remains primary entry)
+
+## 1.4.3
+
+- Agent understands **JSON and `<tool_call>` XML** (gpt-oss style) and **executes** them
+- **delete** action with confirm; multi-round read→write agent loop
+- Chat auto-runs agent actions when model emits tool_call blobs
+- **FAB** higher z-index + touch handlers (sidebar was the only clickable path)
+- **Scaffold** opens new project folder + entry file
+- **Fix** = selection (or whole file); **Fix file** = always entire file
+
+## 1.4.2
+
+- **Critical install fix**: sidebar no longer keeps *old* UI after update (always remount)
+- Version badge **WIT AI 1.4.2** in chat header so you can verify the build
+- Force-clear sidebar container on open
+
+## 1.4.1
+
+- **Fix** button: busy lock (no multi-tap error spam); works from selection or whole file
+- **Web** chip is a **toggle** (stays ON for the session — no re-type modal)
+- **Attach**: project tree or storage files (not the already-open file); clear attachments
+- Stronger **Apply** (strips fences, setValue fallback)
+- Agent / Fix / Generate share busy lock; open file always auto-context
+
+## 1.4.0
+
+- **Sessions**: New chat + Sessions switcher (history not mixed forever)
+- New sessions show **project tree** when a folder is open in Acode
+- **Agent from chat**: type task then tap Agent, or `/agent fix the bug`
+- Agent prefers **write/patch** over “copy this snippet”
+- **Apply to open file** / Insert at cursor on code blocks
+- **Fix file** chip — error-oriented fix of current file
+- FAB **toggles** chat open/close
+- Faster **Thinking…** indicator before network
+- Chat always injects **open file + project tree**
+
 ## 1.3.9
 
+- Chat markdown: **bold**, lists, `code`, fenced blocks, **clickable highlighted links**
 - **Tavily** web search (API key or keyless `X-Tavily-Access-Mode`)
 - **Firecrawl** web search (API key or keyless)
 - URL extract prefers Tavily `/extract` when available

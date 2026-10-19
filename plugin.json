@@ -3,11 +3,18 @@
   "id": "com.witai.coder",
   "name": "WIT AI",
   "main": "main.js",
-  "version": "1.3.9",
+  "version": "1.4.15",
   "readme": "readme.md",
   "changelogs": "changelog.md",
   "icon": "icon.png",
-  "files": [],
+  "files": [
+    "main.js",
+    "readme.md",
+    "changelog.md",
+    "LICENSE",
+    "NOTICE",
+    "icon.png"
+  ],
   "minVersionCode": 290,
   "license": "Apache-2.0",
   "keywords": [
